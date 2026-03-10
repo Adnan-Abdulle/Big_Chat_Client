@@ -1,4 +1,4 @@
-/home/jago/Downloads/chat-server-assignment/source/build/CMakeFiles/main.dir
-/home/jago/Downloads/chat-server-assignment/source/build/CMakeFiles/format.dir
-/home/jago/Downloads/chat-server-assignment/source/build/CMakeFiles/edit_cache.dir
-/home/jago/Downloads/chat-server-assignment/source/build/CMakeFiles/rebuild_cache.dir
+/home/adnan/big-chat-server/build/CMakeFiles/main.dir
+/home/adnan/big-chat-server/build/CMakeFiles/format.dir
+/home/adnan/big-chat-server/build/CMakeFiles/edit_cache.dir
+/home/adnan/big-chat-server/build/CMakeFiles/rebuild_cache.dir

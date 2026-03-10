@@ -22,7 +22,8 @@ void serialize_header(const struct protocol_header *header, uint8_t *buffer) {
   buffer[0] = header->version;
   buffer[1] = header->type;
   buffer[2] = header->status;
-  buffer[3] = 0;
+  buffer[3] = header->reserved;
+
   network_size = htonl(header->body_size);
   memcpy(buffer + 4, &network_size, sizeof(network_size));
 }
@@ -47,6 +48,63 @@ void deserialize_server_registration(const uint8_t *buffer,
                                      struct server_registration *message) {
   deserialize_ipv4(buffer, &message->ip);
   message->server_id = buffer[4];
+}
+
+void serialize_channel_list_request(const struct channel_list_request *message,
+                                    uint8_t *buffer) {
+
+  memcpy(buffer, &message->auth, 32);
+}
+
+void deserialize_channel_list_request(const uint8_t *buffer,
+                                      struct channel_list_request *message) {
+
+  memcpy(&message->auth, buffer, 32);
+}
+
+size_t
+serialize_channel_list_response(const struct channel_list_response *message,
+                                uint8_t *buffer, size_t buffer_size) {
+
+  size_t body_size;
+  size_t total_size;
+  struct protocol_header header;
+  uint8_t *body;
+
+  body_size = (size_t)33 + message->channel_id_len;
+  total_size = HEADER_SIZE + body_size;
+
+  if (total_size > buffer_size) {
+    return 0;
+  }
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_CHANNEL_LIST_READ_RESPONSE;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = (uint32_t)body_size;
+
+  serialize_header(&header, buffer);
+
+  body = buffer + HEADER_SIZE;
+
+  memcpy(body, &message->auth, 32);
+
+  body[32] = message->channel_id_len;
+
+  memcpy(body + 33, message->channel_ids, message->channel_id_len);
+
+  return total_size;
+}
+
+void deserialize_channel_list_response(const uint8_t *buffer,
+                                       struct channel_list_response *message) {
+
+  memcpy(&message->auth, buffer, 32);
+
+  message->channel_id_len = buffer[32];
+
+  memcpy(message->channel_ids, buffer + 33, message->channel_id_len);
 }
 
 void serialize_server_activation(const struct server_activation *message,
@@ -75,18 +133,18 @@ void deserialize_account_registration(const uint8_t *buffer,
 
 void serialize_login_or_logout(const struct login_or_logout *message,
                                uint8_t *buffer) {
-  memcpy(buffer, message->password, PASSWORD_SIZE);
-  buffer[PASSWORD_SIZE] = message->account_id;
-  buffer[PASSWORD_SIZE + 1] = message->account_status;
-  serialize_ipv4(&message->ip, buffer + PASSWORD_SIZE + 2);
+  memcpy(buffer, message->auth.username, USERNAME_SIZE);
+  memcpy(buffer + USERNAME_SIZE, message->auth.password, PASSWORD_SIZE);
+  serialize_ipv4(&message->ip, buffer + USERNAME_SIZE + PASSWORD_SIZE);
+  buffer[USERNAME_SIZE + PASSWORD_SIZE + 4] = message->account_status;
 }
 
 void deserialize_login_or_logout(const uint8_t *buffer,
                                  struct login_or_logout *message) {
-  memcpy(message->password, buffer, PASSWORD_SIZE);
-  message->account_id = buffer[PASSWORD_SIZE];
-  message->account_status = buffer[PASSWORD_SIZE + 1];
-  deserialize_ipv4(buffer + PASSWORD_SIZE + 2, &message->ip);
+  memcpy(message->auth.username, buffer, USERNAME_SIZE);
+  memcpy(message->auth.password, buffer + USERNAME_SIZE, PASSWORD_SIZE);
+  deserialize_ipv4(buffer + USERNAME_SIZE + PASSWORD_SIZE, &message->ip);
+  message->account_status = buffer[USERNAME_SIZE + PASSWORD_SIZE + 4];
 }
 
 size_t serialize_log_request(uint8_t server_id, const char *log_message,
@@ -113,6 +171,7 @@ size_t serialize_log_request(uint8_t server_id, const char *log_message,
   header.version = PROTOCOL_VERSION;
   header.type = MESSAGE_TYPE_LOG_REQUEST;
   header.status = STATUS_OK;
+  header.reserved = 0;
   header.body_size = (uint32_t)body_size;
   serialize_header(&header, buffer);
 
@@ -126,8 +185,8 @@ size_t serialize_log_request(uint8_t server_id, const char *log_message,
 
   return total_size;
 }
-
 uint32_t get_body_size_for_type(uint8_t message_type) {
+
   if (message_type == MESSAGE_TYPE_SERVER_REGISTRATION_REQUEST ||
       message_type == MESSAGE_TYPE_SERVER_REGISTRATION_RESPONSE ||
       message_type == MESSAGE_TYPE_SERVER_HEALTH_CHECK_REQUEST ||
@@ -150,6 +209,10 @@ uint32_t get_body_size_for_type(uint8_t message_type) {
   if (message_type == MESSAGE_TYPE_LOGIN_OR_LOGOUT_REQUEST ||
       message_type == MESSAGE_TYPE_LOGIN_OR_LOGOUT_RESPONSE) {
     return LOGIN_OR_LOGOUT_BODY_SIZE;
+  }
+
+  if (message_type == MESSAGE_TYPE_CHANNEL_LIST_READ_REQUEST) {
+    return CHANNEL_LIST_REQUEST_BODY_SIZE;
   }
 
   return 0;

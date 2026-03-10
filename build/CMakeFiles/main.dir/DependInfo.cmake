@@ -8,14 +8,11 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/jago/Downloads/chat-server-assignment/source/src/client_account.c" "CMakeFiles/main.dir/src/client_account.c.o" "gcc" "CMakeFiles/main.dir/src/client_account.c.o.d"
-  "/home/jago/Downloads/chat-server-assignment/source/src/client_handler.c" "CMakeFiles/main.dir/src/client_handler.c.o" "gcc" "CMakeFiles/main.dir/src/client_handler.c.o.d"
-  "/home/jago/Downloads/chat-server-assignment/source/src/main.c" "CMakeFiles/main.dir/src/main.c.o" "gcc" "CMakeFiles/main.dir/src/main.c.o.d"
-  "/home/jago/Downloads/chat-server-assignment/source/src/manager.c" "CMakeFiles/main.dir/src/manager.c.o" "gcc" "CMakeFiles/main.dir/src/manager.c.o.d"
-  "/home/jago/Downloads/chat-server-assignment/source/src/network.c" "CMakeFiles/main.dir/src/network.c.o" "gcc" "CMakeFiles/main.dir/src/network.c.o.d"
-  "/home/jago/Downloads/chat-server-assignment/source/src/protocol.c" "CMakeFiles/main.dir/src/protocol.c.o" "gcc" "CMakeFiles/main.dir/src/protocol.c.o.d"
-  "/home/jago/Downloads/chat-server-assignment/source/src/server.c" "CMakeFiles/main.dir/src/server.c.o" "gcc" "CMakeFiles/main.dir/src/server.c.o.d"
-  "" "main" "gcc" "CMakeFiles/main.dir/link.d"
+  "/home/adnan/big-chat-server/src/client.c" "CMakeFiles/main.dir/src/client.c.o" "gcc" "CMakeFiles/main.dir/src/client.c.o.d"
+  "/home/adnan/big-chat-server/src/main.c" "CMakeFiles/main.dir/src/main.c.o" "gcc" "CMakeFiles/main.dir/src/main.c.o.d"
+  "/home/adnan/big-chat-server/src/ncurses_ui.c" "CMakeFiles/main.dir/src/ncurses_ui.c.o" "gcc" "CMakeFiles/main.dir/src/ncurses_ui.c.o.d"
+  "/home/adnan/big-chat-server/src/network.c" "CMakeFiles/main.dir/src/network.c.o" "gcc" "CMakeFiles/main.dir/src/network.c.o.d"
+  "/home/adnan/big-chat-server/src/protocol.c" "CMakeFiles/main.dir/src/protocol.c.o" "gcc" "CMakeFiles/main.dir/src/protocol.c.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-enum { PROTOCOL_VERSION = 0x01 };
+enum { PROTOCOL_VERSION = 0x02 };
 
 enum { HEADER_SIZE = 8 };
 enum { USERNAME_SIZE = 16, PASSWORD_SIZE = 16 };
@@ -14,7 +14,8 @@ enum { SERVER_HEALTH_CHECK_BODY_SIZE = 5 };
 enum { SERVER_ACTIVATION_BODY_SIZE = 1 };
 enum { SERVER_DEACTIVATION_BODY_SIZE = 1 };
 enum { ACCOUNT_REGISTRATION_BODY_SIZE = 33 };
-enum { LOGIN_OR_LOGOUT_BODY_SIZE = 22 };
+enum { LOGIN_OR_LOGOUT_BODY_SIZE = 37 };
+enum { CHANNEL_LIST_REQUEST_BODY_SIZE = 32 };
 
 enum {
     MESSAGE_TYPE_SERVER_REGISTRATION_REQUEST = 0x00,
@@ -32,7 +33,12 @@ enum {
     MESSAGE_TYPE_LOGIN_OR_LOGOUT_REQUEST = 0x14,
     MESSAGE_TYPE_LOGIN_OR_LOGOUT_RESPONSE = 0x15,
     MESSAGE_TYPE_LOG_REQUEST = 0x18,
-    MESSAGE_TYPE_LOG_RESPONSE = 0x19
+    MESSAGE_TYPE_LOG_RESPONSE = 0x19,
+
+    MESSAGE_TYPE_CHANNEL_READ_REQUEST = 0x22,
+    MESSAGE_TYPE_CHANNEL_READ_RESPONSE = 0x23,
+    MESSAGE_TYPE_CHANNEL_LIST_READ_REQUEST = 0x2A,
+    MESSAGE_TYPE_CHANNEL_LIST_READ_RESPONSE = 0x2B
 };
 
 enum {
@@ -50,6 +56,7 @@ struct protocol_header {
     uint8_t version;
     uint8_t type;
     uint8_t status;
+    uint8_t reserved;
     uint32_t body_size;
 };
 
@@ -75,11 +82,25 @@ struct account_registration {
     uint8_t account_id;
 };
 
-struct login_or_logout {
+struct auth {
+    char username[USERNAME_SIZE];
     char password[PASSWORD_SIZE];
-    uint8_t account_id;
-    uint8_t account_status;
+};
+
+struct login_or_logout {
+    struct auth auth;
     struct ipv4_address ip;
+    uint8_t account_status;
+};
+
+struct channel_list_request{
+    struct auth auth;
+};
+
+struct channel_list_response {
+    struct auth auth;
+    uint8_t channel_id_len;
+    uint8_t channel_ids[255];
 };
 
 void serialize_header(const struct protocol_header *header, uint8_t *buffer);
@@ -109,5 +130,23 @@ size_t serialize_log_request(uint8_t server_id, const char *log_message,
                              uint8_t *buffer, size_t buffer_size);
 
 uint32_t get_body_size_for_type(uint8_t message_type);
+
+void serialize_channel_list_request( const struct channel_list_request *message,
+                                     uint8_t *buffer);
+
+void deserialize_channel_list_request(
+        const uint8_t *buffer,
+        struct channel_list_request *message);
+
+size_t serialize_channel_list_response(
+        const struct channel_list_response *message,
+        uint8_t *buffer,
+        size_t buffer_size);
+
+void deserialize_channel_list_response(
+        const uint8_t *buffer,
+        struct channel_list_response *message);
+
+
 
 #endif
