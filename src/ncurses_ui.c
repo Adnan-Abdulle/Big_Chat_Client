@@ -206,7 +206,14 @@ void main_page(int server, char *password, char *username) {
     } else {
 
       for (int i = 0; i < response.channel_id_len; ++i) {
-        mvprintw(9 + i, 5, "Channel ID:%d", response.channel_ids[i]);
+
+        struct channel_read_response channelReadResponse;
+        channel_read_request(server, username, password, response.channel_ids[i]);
+        if (channel_read_response(server, &channelReadResponse) == 0) {
+          mvprintw(9 + i, 5, "ID: %d Name: %.16s",
+                   response.channel_ids[i],
+                   channelReadResponse.channel_name);
+        }
       }
     }
 
