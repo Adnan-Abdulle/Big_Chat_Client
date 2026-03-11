@@ -7,7 +7,8 @@
 enum { PROTOCOL_VERSION = 0x02 };
 
 enum { HEADER_SIZE = 8 };
-enum { USERNAME_SIZE = 16, PASSWORD_SIZE = 16 };
+enum { USERNAME_SIZE = 16, PASSWORD_SIZE = 16, CHANNEL_NAME_SIZE = 16};
+enum { MAX_IDS = 256 };
 
 enum { SERVER_REGISTRATION_BODY_SIZE = 5 };
 enum { SERVER_HEALTH_CHECK_BODY_SIZE = 5 };
@@ -16,6 +17,10 @@ enum { SERVER_DEACTIVATION_BODY_SIZE = 1 };
 enum { ACCOUNT_REGISTRATION_BODY_SIZE = 33 };
 enum { LOGIN_OR_LOGOUT_BODY_SIZE = 37 };
 enum { CHANNEL_LIST_REQUEST_BODY_SIZE = 32 };
+enum { CHANNEL_READ_REQUEST_BODY_SIZE = 33 };
+enum  { CHANNEL_READ_RESPONSE_MIN_BODY_SIZE = 50};
+enum { CHANNEL_RESPONSE_MAX_BODY_SIZE = 50 + MAX_IDS };
+
 
 enum {
     MESSAGE_TYPE_SERVER_REGISTRATION_REQUEST = 0x00,
@@ -100,21 +105,25 @@ struct channel_list_request{
 struct channel_list_response {
     struct auth auth;
     uint8_t channel_id_len;
-    uint8_t channel_ids[255];
+    uint8_t channel_ids[MAX_IDS];
+};
+
+struct channel_read_request {
+    struct auth auth;
+    uint8_t channel_id;
+};
+
+struct channel_read_response {
+    struct auth auth;
+    char channel_name[CHANNEL_NAME_SIZE];
+    uint8_t channel_id;
+    uint8_t user_id_len;
+    uint8_t user_ids[MAX_IDS];
 };
 
 void serialize_header(const struct protocol_header *header, uint8_t *buffer);
 void deserialize_header(const uint8_t *buffer, struct protocol_header *header);
 
-void serialize_server_registration(const struct server_registration *message,
-                                   uint8_t *buffer);
-void deserialize_server_registration(const uint8_t *buffer,
-                                     struct server_registration *message);
-
-void serialize_server_activation(const struct server_activation *message,
-                                 uint8_t *buffer);
-void deserialize_server_activation(const uint8_t *buffer,
-                                   struct server_activation *message);
 
 void serialize_account_registration(const struct account_registration *message,
                                     uint8_t *buffer);
@@ -126,26 +135,19 @@ void serialize_login_or_logout(const struct login_or_logout *message,
 void deserialize_login_or_logout(const uint8_t *buffer,
                                  struct login_or_logout *message);
 
-size_t serialize_log_request(uint8_t server_id, const char *log_message,
-                             uint8_t *buffer, size_t buffer_size);
-
 uint32_t get_body_size_for_type(uint8_t message_type);
 
 void serialize_channel_list_request( const struct channel_list_request *message,
                                      uint8_t *buffer);
 
-void deserialize_channel_list_request(
-        const uint8_t *buffer,
-        struct channel_list_request *message);
+void deserialize_channel_list_response( const uint8_t *buffer,
+                                        struct channel_list_response *message);
 
-size_t serialize_channel_list_response(
-        const struct channel_list_response *message,
-        uint8_t *buffer,
-        size_t buffer_size);
+void serialize_channel_read_request( const struct channel_read_request *message,
+                                        uint8_t *buffer);
 
-void deserialize_channel_list_response(
-        const uint8_t *buffer,
-        struct channel_list_response *message);
+void deserialize_channel_read_response(const uint8_t *buffer,
+                                       struct channel_read_response *message);
 
 
 

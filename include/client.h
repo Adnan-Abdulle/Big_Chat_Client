@@ -28,4 +28,8 @@ int connect_server_manager(const char* ip, uint16_t port);
 void channel_list_request(int server_fd, char* username, char* password);
 
 int channel_list_response(int server_fd, struct channel_list_response *response);
+
+void channel_read_request(int server_fd, char *username, char *password, uint8_t channel_id);
+
+int channel_read_response(int server_fd, struct channel_read_response *response);
 #endif //MAIN_CLIENT_H
