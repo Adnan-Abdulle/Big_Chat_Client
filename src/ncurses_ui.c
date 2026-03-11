@@ -208,11 +208,12 @@ void main_page(int server, char *password, char *username) {
       for (int i = 0; i < response.channel_id_len; ++i) {
 
         struct channel_read_response channelReadResponse;
-        channel_read_request(server, username, password, response.channel_ids[i]);
+        channel_read_request(server, username, password,
+                             response.channel_ids[i]);
         if (channel_read_response(server, &channelReadResponse) == 0) {
-          mvprintw(9 + i, 5, "ID: %d Name: %.16s",
-                   response.channel_ids[i],
-                   channelReadResponse.channel_name);
+          mvprintw(9 + i, 5, "ID: %u Name: %.16s # of Users: %u",
+                   response.channel_ids[i], channelReadResponse.channel_name,
+                   channelReadResponse.user_id_len);
         }
       }
     }
@@ -239,5 +240,12 @@ void main_page(int server, char *password, char *username) {
         getch();
       }
     }
+  }
+}
+
+void channel_page() {
+  while (1) {
+    clear();
+    refresh();
   }
 }

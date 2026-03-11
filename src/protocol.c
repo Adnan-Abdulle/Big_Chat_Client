@@ -38,12 +38,13 @@ void deserialize_header(const uint8_t *buffer, struct protocol_header *header) {
   header->body_size = ntohl(network_size);
 }
 
-void serialize_channel_list_request(const struct channel_list_request *message, uint8_t *buffer) {
+void serialize_channel_list_request(const struct channel_list_request *message,
+                                    uint8_t *buffer) {
   memcpy(buffer, &message->auth, 32);
 }
 
-
-void deserialize_channel_list_response(const uint8_t *buffer, struct channel_list_response *message) {
+void deserialize_channel_list_response(const uint8_t *buffer,
+                                       struct channel_list_response *message) {
 
   memcpy(&message->auth, buffer, 32);
 
@@ -52,7 +53,8 @@ void deserialize_channel_list_response(const uint8_t *buffer, struct channel_lis
   memcpy(message->channel_ids, buffer + 33, message->channel_id_len);
 }
 
-void serialize_channel_read_request( const struct channel_read_request *message, uint8_t *buffer) {
+void serialize_channel_read_request(const struct channel_read_request *message,
+                                    uint8_t *buffer) {
 
   memcpy(buffer, message->auth.username, USERNAME_SIZE);
   memcpy(buffer + USERNAME_SIZE, message->auth.password, PASSWORD_SIZE);
@@ -60,7 +62,8 @@ void serialize_channel_read_request( const struct channel_read_request *message,
   buffer[32] = message->channel_id;
 }
 
-void deserialize_channel_read_response(const uint8_t *buffer, struct channel_read_response *message) {
+void deserialize_channel_read_response(const uint8_t *buffer,
+                                       struct channel_read_response *message) {
 
   memcpy(message->auth.username, buffer, USERNAME_SIZE);
   memcpy(message->auth.password, buffer + USERNAME_SIZE, PASSWORD_SIZE);
@@ -72,7 +75,6 @@ void deserialize_channel_read_response(const uint8_t *buffer, struct channel_rea
 
   memcpy(message->user_ids, buffer + 50, message->user_id_len);
 }
-
 
 void serialize_account_registration(const struct account_registration *message,
                                     uint8_t *buffer) {
@@ -102,6 +104,11 @@ void deserialize_login_or_logout(const uint8_t *buffer,
   memcpy(message->auth.password, buffer + USERNAME_SIZE, PASSWORD_SIZE);
   deserialize_ipv4(buffer + USERNAME_SIZE + PASSWORD_SIZE, &message->ip);
   message->account_status = buffer[USERNAME_SIZE + PASSWORD_SIZE + 4];
+}
+void deserialize_server_registration(const uint8_t *buffer,
+                                     struct server_registration *message) {
+  deserialize_ipv4(buffer, &message->ip);
+  message->server_id = buffer[4];
 }
 
 uint32_t get_body_size_for_type(uint8_t message_type) {

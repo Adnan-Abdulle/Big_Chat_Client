@@ -226,7 +226,8 @@ int channel_list_response(int server_fd,
   return 0;
 }
 
-void channel_read_request(int server_fd, char *username, char *password, uint8_t channel_id) {
+void channel_read_request(int server_fd, char *username, char *password,
+                          uint8_t channel_id) {
 
   uint8_t buffer[HEADER_SIZE + CHANNEL_READ_REQUEST_BODY_SIZE];
   struct protocol_header header;
@@ -317,6 +318,51 @@ int connect_socket(const char *ip, uint16_t port) {
   return fd;
 }
 
+void active_server_request(int server_manager) {
+  uint8_t buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_GET_ACTIVATED_SERVER_REQUEST;
+  header.status = STATUS_OK;
+  header.body_size = 0;
+  serialize_header(&header, buffer);
+
+  write_exact(server_manager, buffer, HEADER_SIZE);
+}
+
+// Receives the server IP from the server manager
+char *active_server_rsp(int server_manager) {
+
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  read_exact(server_manager, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.status != STATUS_OK) {
+    syslog(LOG_ERR, "Manager error");
+    return NULL;
+  }
+  if (header.body_size != SERVER_REGISTRATION_BODY_SIZE) {
+    syslog(LOG_ERR, "Server registration body size error");
+    return NULL;
+  }
+
+  uint8_t body_buffer[SERVER_REGISTRATION_BODY_SIZE];
+  struct server_registration server_reg;
+  read_exact(server_manager, body_buffer, SERVER_REGISTRATION_BODY_SIZE);
+  deserialize_server_registration(body_buffer, &server_reg);
+
+  size_t ip_size = 16;
+  char *server_ip = malloc(ip_size);
+  if (server_ip != NULL) {
+    snprintf(server_ip, ip_size, "%u.%u.%u.%u", server_reg.ip.a,
+             server_reg.ip.b, server_reg.ip.c, server_reg.ip.d);
+  }
+
+  return server_ip;
+}
 
 // connects the client to the server manager, gets the server ip, and then
 // connects to the server. Returns the server file descriptor
