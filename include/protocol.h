@@ -3,6 +3,15 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <arpa/inet.h>
+
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+
+#define htobe64(x) OSSwapHostToBigInt64(x)
+#define be64toh(x) OSSwapBigToHostInt64(x)
+
+#endif
 
 enum { PROTOCOL_VERSION = 0x02 };
 
@@ -18,8 +27,11 @@ enum { ACCOUNT_REGISTRATION_BODY_SIZE = 33 };
 enum { LOGIN_OR_LOGOUT_BODY_SIZE = 37 };
 enum { CHANNEL_LIST_REQUEST_BODY_SIZE = 32 };
 enum { CHANNEL_READ_REQUEST_BODY_SIZE = 33 };
-enum  { CHANNEL_READ_RESPONSE_MIN_BODY_SIZE = 50};
 enum { CHANNEL_RESPONSE_MAX_BODY_SIZE = 50 + MAX_IDS };
+enum { MAX_MESSAGE_SIZE = 1024};
+enum { MIN_MESSAGE_CREATE_BODY_SIZE = 43};
+enum { MIN_MESSAGE_READ_RESPONSE_BODY_SIZE = 44};
+enum { MESSAGE_READ_REQUEST_BODY_SIZE= 40};
 
 
 enum {
@@ -43,7 +55,12 @@ enum {
     MESSAGE_TYPE_CHANNEL_READ_REQUEST = 0x22,
     MESSAGE_TYPE_CHANNEL_READ_RESPONSE = 0x23,
     MESSAGE_TYPE_CHANNEL_LIST_READ_REQUEST = 0x2A,
-    MESSAGE_TYPE_CHANNEL_LIST_READ_RESPONSE = 0x2B
+    MESSAGE_TYPE_CHANNEL_LIST_READ_RESPONSE = 0x2B,
+    MESSAGE_TYPE_MESSAGE_CREATE_REQUEST  = 0x30,
+    MESSAGE_TYPE_MESSAGE_CREATE_RESPONSE = 0x31,
+    MESSAGE_TYPE_MESSAGE_READ_REQUEST    = 0x32,
+    MESSAGE_TYPE_MESSAGE_READ_RESPONSE   = 0x33
+
 };
 
 enum {
@@ -121,6 +138,28 @@ struct channel_read_response {
     uint8_t user_ids[MAX_IDS];
 };
 
+struct message_create_request {
+    struct auth auth;
+    uint64_t timestamp;
+    uint16_t message_len;
+    uint8_t channel_id;
+    char message[MAX_MESSAGE_SIZE];
+};
+
+struct message_read_request {
+    struct auth auth;
+    uint64_t timestamp;
+};
+
+struct message_read_response {
+    struct auth auth;
+    uint64_t timestamp;
+    uint16_t message_len;
+    uint8_t channel_id;
+    uint8_t sender_id;
+    char message[MAX_MESSAGE_SIZE];
+};
+
 void serialize_header(const struct protocol_header *header, uint8_t *buffer);
 void deserialize_header(const uint8_t *buffer, struct protocol_header *header);
 
@@ -137,6 +176,10 @@ void deserialize_login_or_logout(const uint8_t *buffer,
 
 uint32_t get_body_size_for_type(uint8_t message_type);
 
+void deserialize_server_registration(const uint8_t *buffer,
+                                     struct server_registration *message);
+
+
 void serialize_channel_list_request( const struct channel_list_request *message,
                                      uint8_t *buffer);
 
@@ -148,6 +191,15 @@ void serialize_channel_read_request( const struct channel_read_request *message,
 
 void deserialize_channel_read_response(const uint8_t *buffer,
                                        struct channel_read_response *message);
+
+void serialize_message_create_request( const struct message_create_request *message,
+        uint8_t *buffer);
+
+void serialize_message_read_request( const struct message_read_request *message,
+        uint8_t *buffer);
+
+void deserialize_message_read_response( const uint8_t *buffer,
+        struct message_read_response *message);
 
 
 

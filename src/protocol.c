@@ -76,6 +76,54 @@ void deserialize_channel_read_response(const uint8_t *buffer,
   memcpy(message->user_ids, buffer + 50, message->user_id_len);
 }
 
+void serialize_message_create_request(
+    const struct message_create_request *message, uint8_t *buffer) {
+
+  memcpy(buffer, message->auth.username, USERNAME_SIZE);
+  memcpy(buffer + USERNAME_SIZE, message->auth.password, PASSWORD_SIZE);
+
+  uint64_t timestamp_net = htobe64(message->timestamp);
+  memcpy(buffer + 32, &timestamp_net, 8);
+
+  uint16_t len_net = htons(message->message_len);
+  memcpy(buffer + 40, &len_net, 2);
+
+  buffer[42] = message->channel_id;
+
+  memcpy(buffer + 43, message->message, message->message_len);
+}
+
+void serialize_message_read_request(const struct message_read_request *message,
+                                    uint8_t *buffer) {
+
+  memcpy(buffer, message->auth.username, USERNAME_SIZE);
+  memcpy(buffer + USERNAME_SIZE, message->auth.password, PASSWORD_SIZE);
+
+  uint64_t timestamp_net = htobe64(message->timestamp);
+  memcpy(buffer + 32, &timestamp_net, 8);
+}
+
+void deserialize_message_read_response(const uint8_t *buffer,
+                                       struct message_read_response *message) {
+
+  memcpy(message->auth.username, buffer, USERNAME_SIZE);
+  memcpy(message->auth.password, buffer + USERNAME_SIZE, PASSWORD_SIZE);
+
+  uint64_t timestamp_net;
+  memcpy(&timestamp_net, buffer + 32, 8);
+  message->timestamp = be64toh(timestamp_net);
+
+  uint16_t len_net;
+  memcpy(&len_net, buffer + 40, 2);
+  message->message_len = ntohs(len_net);
+
+  message->channel_id = buffer[42];
+  message->sender_id = buffer[43];
+
+  memcpy(message->message, buffer + 44, message->message_len);
+  message->message[message->message_len] = '\0';
+}
+
 void serialize_account_registration(const struct account_registration *message,
                                     uint8_t *buffer) {
   memcpy(buffer, message->username, USERNAME_SIZE);

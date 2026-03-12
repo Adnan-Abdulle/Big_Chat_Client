@@ -32,4 +32,13 @@ int channel_list_response(int server_fd, struct channel_list_response *response)
 void channel_read_request(int server_fd, char *username, char *password, uint8_t channel_id);
 
 int channel_read_response(int server_fd, struct channel_read_response *response);
+
+void message_create_request( int server, char *username, char *password, uint8_t channel_id,
+                            const char *message);
+int message_create_response(int server);
+
+void message_read_request(int server, char *username, char *password, uint64_t timestamp);
+
+int message_read_response(int server, struct message_read_response *response);
+
 #endif //MAIN_CLIENT_H

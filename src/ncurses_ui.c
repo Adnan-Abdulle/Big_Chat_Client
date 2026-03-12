@@ -6,6 +6,7 @@ void run_ui(const char *ip, uint16_t port) {
   cbreak();
   noecho();
   curs_set(0);
+  keypad(stdscr, TRUE);
 
   mvprintw(0, 0, "Connecting...");
   refresh();
@@ -163,7 +164,7 @@ void login_ui(int server) {
 
     flushinp();
 
-    main_page(server, password, username);
+    main_page(server, username, password);
     return;
   }
 
@@ -174,10 +175,10 @@ void login_ui(int server) {
   delwin(userwin);
   delwin(passwin);
 }
-
-void main_page(int server, char *password, char *username) {
+void main_page(int server, char *username, char *password) {
 
   int ch;
+  int selected = 0;
 
   while (1) {
 
@@ -208,12 +209,21 @@ void main_page(int server, char *password, char *username) {
       for (int i = 0; i < response.channel_id_len; ++i) {
 
         struct channel_read_response channelReadResponse;
+
         channel_read_request(server, username, password,
                              response.channel_ids[i]);
-        if (channel_read_response(server, &channelReadResponse) == 0) {
-          mvprintw(9 + i, 5, "ID: %u Name: %.16s # of Users: %u",
-                   response.channel_ids[i], channelReadResponse.channel_name,
-                   channelReadResponse.user_id_len);
+
+        channel_read_response(server, &channelReadResponse);
+
+        if (i == selected) {
+          attron(A_REVERSE);
+        }
+
+        mvprintw(9 + i, 5, "ID: %u Name: %.16s", response.channel_ids[i],
+                 channelReadResponse.channel_name);
+
+        if (i == selected) {
+          attroff(A_REVERSE);
         }
       }
     }
@@ -222,7 +232,22 @@ void main_page(int server, char *password, char *username) {
 
     ch = getch();
 
-    if (ch == 'q') {
+    if (ch == KEY_UP) {
+
+      if (selected > 0) {
+        selected--;
+      }
+
+    } else if (ch == KEY_DOWN) {
+
+      if (selected < response.channel_id_len - 1) {
+        selected++;
+      }
+
+    } else if (ch == 10) {
+      channel_page(server, username, password, response.channel_ids[selected]);
+
+    } else if (ch == 'q') {
 
       logout(server, password, username);
 
@@ -242,10 +267,129 @@ void main_page(int server, char *password, char *username) {
     }
   }
 }
+void channel_page(int server, char *username, char *password,
+                  uint8_t channel_id) {
 
-void channel_page() {
+  clear();
+  refresh();
+
+  struct channel_read_response response;
+
+  channel_read_request(server, username, password, channel_id);
+  channel_read_response(server, &response);
+
+  int height, width;
+  getmaxyx(stdscr, height, width);
+
+  WINDOW *header_win = newwin(2, width, 0, 0);
+  WINDOW *msg_win = newwin(height - 5, width, 2, 0);
+  WINDOW *input_win = newwin(3, width, height - 3, 0);
+
+  scrollok(msg_win, TRUE);
+
+  keypad(stdscr, TRUE);
+  nodelay(stdscr, TRUE);
+
+  int focus = 1;
+  int ch;
+
+  char input[256] = {0};
+  int input_len = 0;
+
   while (1) {
-    clear();
-    refresh();
+
+    werase(header_win);
+
+    if (focus == 0)
+      wattron(header_win, A_REVERSE);
+    mvwprintw(header_win, 0, 0, "< Back");
+    if (focus == 0)
+      wattroff(header_win, A_REVERSE);
+
+    mvwprintw(header_win, 0, 10, "%.16s", response.channel_name);
+
+    wrefresh(header_win);
+
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(server, &readfds);
+
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 10000;
+
+    select(server + 1, &readfds, NULL, NULL, &tv);
+
+    if (FD_ISSET(server, &readfds)) {
+
+      struct message_read_response msg;
+
+      if (message_read_response(server, &msg) == 0) {
+
+        wprintw(msg_win, "%u: %.*s\n", msg.sender_id, msg.message_len,
+                msg.message);
+
+        wrefresh(msg_win);
+      }
+    }
+
+    ch = getch();
+
+    if (ch != ERR) {
+
+      if (ch == KEY_UP)
+        focus = 0;
+
+      else if (ch == KEY_DOWN)
+        focus = 1;
+
+      else if (focus == 0 && (ch == '\n' || ch == KEY_ENTER)) {
+        break;
+      }
+
+      else if (focus == 1) {
+
+        if (ch == '\n') {
+
+          message_create_request(server, username, password, channel_id, input);
+          message_create_response(server);
+
+          channel_read_request(server, username, password, channel_id);
+          channel_read_response(server, &response);
+
+          input_len = 0;
+          input[0] = '\0';
+        }
+
+        else if (ch == KEY_BACKSPACE || ch == 127) {
+
+          if (input_len > 0) {
+            input_len--;
+            input[input_len] = '\0';
+          }
+        }
+
+        else if (input_len < 255 && ch >= 32 && ch <= 126) {
+
+          input[input_len++] = ch;
+          input[input_len] = '\0';
+        }
+      }
+    }
+
+    werase(input_win);
+    box(input_win, 0, 0);
+
+    if (focus == 1)
+      wattron(input_win, A_REVERSE);
+    mvwprintw(input_win, 1, 1, "> %s", input);
+    if (focus == 1)
+      wattroff(input_win, A_REVERSE);
+
+    wrefresh(input_win);
   }
+
+  delwin(header_win);
+  delwin(msg_win);
+  delwin(input_win);
 }

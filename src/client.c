@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>
+#include <time.h>
 #include <unistd.h>
 
 // Sends an account creation request to the server
@@ -364,6 +365,124 @@ char *active_server_rsp(int server_manager) {
   return server_ip;
 }
 
+void message_create_request(int server, char *username, char *password,
+                            uint8_t channel_id, const char *message) {
+  uint16_t message_len = strlen(message);
+
+  uint8_t buffer[HEADER_SIZE + MIN_MESSAGE_CREATE_BODY_SIZE + MAX_MESSAGE_SIZE];
+
+  struct protocol_header header;
+  struct message_create_request request;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_MESSAGE_CREATE_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = MIN_MESSAGE_CREATE_BODY_SIZE + message_len;
+
+  serialize_header(&header, buffer);
+
+  memset(&request, 0, sizeof(request));
+
+  memcpy(request.auth.username, username, USERNAME_SIZE);
+  memcpy(request.auth.password, password, PASSWORD_SIZE);
+
+  request.timestamp = time(NULL);
+  request.message_len = message_len;
+  request.channel_id = channel_id;
+
+  memcpy(request.message, message, message_len);
+
+  serialize_message_create_request(&request, buffer + HEADER_SIZE);
+
+  write_exact(server, buffer, HEADER_SIZE + header.body_size);
+}
+
+int message_create_response(int server) {
+
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  read_exact(server, header_buffer, HEADER_SIZE);
+
+  deserialize_header(header_buffer, &header);
+
+  if (header.type != MESSAGE_TYPE_MESSAGE_CREATE_RESPONSE) {
+    return -1;
+  }
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.body_size > MAX_MESSAGE_SIZE) {
+    return -1;
+  }
+
+  if (header.body_size > 0) {
+    uint8_t body_buffer[MAX_MESSAGE_SIZE];
+    read_exact(server, body_buffer, header.body_size);
+  }
+
+  return 0;
+}
+void message_read_request(int server, char *username, char *password,
+                          uint64_t timestamp) {
+
+  uint8_t buffer[HEADER_SIZE + MESSAGE_READ_REQUEST_BODY_SIZE];
+
+  struct protocol_header header;
+  struct message_read_request request;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_MESSAGE_READ_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = MESSAGE_READ_REQUEST_BODY_SIZE;
+
+  serialize_header(&header, buffer);
+
+  memset(&request, 0, sizeof(request));
+
+  memcpy(request.auth.username, username, USERNAME_SIZE);
+  memcpy(request.auth.password, password, PASSWORD_SIZE);
+
+  request.timestamp = timestamp;
+
+  serialize_message_read_request(&request, buffer + HEADER_SIZE);
+
+  write_exact(server, buffer, HEADER_SIZE + MESSAGE_READ_REQUEST_BODY_SIZE);
+}
+
+int message_read_response(int server, struct message_read_response *response) {
+
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  uint8_t body_buffer[MIN_MESSAGE_READ_RESPONSE_BODY_SIZE + MAX_MESSAGE_SIZE];
+
+  read_exact(server, header_buffer, HEADER_SIZE);
+
+  deserialize_header(header_buffer, &header);
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.type != MESSAGE_TYPE_MESSAGE_READ_RESPONSE) {
+    return -1;
+  }
+
+  if (header.body_size > sizeof(body_buffer)) {
+    return -1;
+  }
+
+  read_exact(server, body_buffer, header.body_size);
+
+  deserialize_message_read_response(body_buffer, response);
+
+  return 0;
+}
 // connects the client to the server manager, gets the server ip, and then
 // connects to the server. Returns the server file descriptor
 int connect_server_manager(const char *ip, uint16_t port) {
