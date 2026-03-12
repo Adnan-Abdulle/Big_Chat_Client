@@ -384,8 +384,8 @@ void message_create_request(int server, char *username, char *password,
 
   memset(&request, 0, sizeof(request));
 
-  memcpy(request.auth.username, username, USERNAME_SIZE);
-  memcpy(request.auth.password, password, PASSWORD_SIZE);
+  memcpy(request.auth.username, username, strlen(username));
+  memcpy(request.auth.password, password, strlen(password));
 
   request.timestamp = time(NULL);
   request.message_len = message_len;
@@ -444,8 +444,8 @@ void message_read_request(int server, char *username, char *password,
 
   memset(&request, 0, sizeof(request));
 
-  memcpy(request.auth.username, username, USERNAME_SIZE);
-  memcpy(request.auth.password, password, PASSWORD_SIZE);
+  memcpy(request.auth.username, username, strlen(username));
+  memcpy(request.auth.password, password, strlen(password));
 
   request.timestamp = timestamp;
 

@@ -269,7 +269,6 @@ void main_page(int server, char *username, char *password) {
 }
 void channel_page(int server, char *username, char *password,
                   uint8_t channel_id) {
-
   clear();
   refresh();
 
@@ -277,6 +276,8 @@ void channel_page(int server, char *username, char *password,
 
   channel_read_request(server, username, password, channel_id);
   channel_read_response(server, &response);
+
+  message_read_request(server, username, password, channel_id);
 
   int height, width;
   getmaxyx(stdscr, height, width);
@@ -293,11 +294,10 @@ void channel_page(int server, char *username, char *password,
   int focus = 1;
   int ch;
 
-  char input[256] = {0};
+  char input[1024] = {0};
   int input_len = 0;
 
   while (1) {
-
     werase(header_win);
 
     if (focus == 0)
@@ -307,70 +307,60 @@ void channel_page(int server, char *username, char *password,
       wattroff(header_win, A_REVERSE);
 
     mvwprintw(header_win, 0, 10, "%.16s", response.channel_name);
-
     wrefresh(header_win);
 
     fd_set readfds;
     FD_ZERO(&readfds);
     FD_SET(server, &readfds);
 
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 10000;
+    struct timeval tv = {0, 0};
 
-    select(server + 1, &readfds, NULL, NULL, &tv);
+    if (select(server + 1, &readfds, NULL, NULL, &tv) > 0) {
+      while (1) {
+        struct message_read_response msg;
 
-    if (FD_ISSET(server, &readfds)) {
+        if (message_read_response(server, &msg) != 0)
+          break;
 
-      struct message_read_response msg;
-
-      if (message_read_response(server, &msg) == 0) {
-
-        wprintw(msg_win, "%u: %.*s\n", msg.sender_id, msg.message_len,
-                msg.message);
-
+        wprintw(msg_win, "%u: %s\n", msg.sender_id, msg.message);
         wrefresh(msg_win);
+
+        fd_set tmp;
+        FD_ZERO(&tmp);
+        FD_SET(server, &tmp);
+
+        struct timeval tv2 = {0, 0};
+
+        if (select(server + 1, &tmp, NULL, NULL, &tv2) <= 0)
+          break;
       }
     }
 
     ch = getch();
 
     if (ch != ERR) {
-
       if (ch == KEY_UP)
         focus = 0;
 
       else if (ch == KEY_DOWN)
         focus = 1;
 
-      else if (focus == 0 && (ch == '\n' || ch == KEY_ENTER)) {
+      else if (focus == 0 && (ch == '\n' || ch == KEY_ENTER))
         break;
-      }
 
       else if (focus == 1) {
-
         if (ch == '\n') {
-
           message_create_request(server, username, password, channel_id, input);
           message_create_response(server);
 
-          channel_read_request(server, username, password, channel_id);
-          channel_read_response(server, &response);
-
           input_len = 0;
           input[0] = '\0';
-        }
-
-        else if (ch == KEY_BACKSPACE || ch == 127) {
-
+        } else if (ch == KEY_BACKSPACE || ch == 127) {
           if (input_len > 0) {
             input_len--;
             input[input_len] = '\0';
           }
-        }
-
-        else if (input_len < 255 && ch >= 32 && ch <= 126) {
-
+        } else if (input_len < 1023 && ch >= 32 && ch <= 126) {
           input[input_len++] = ch;
           input[input_len] = '\0';
         }
@@ -387,6 +377,8 @@ void channel_page(int server, char *username, char *password,
       wattroff(input_win, A_REVERSE);
 
     wrefresh(input_win);
+
+    napms(10);
   }
 
   delwin(header_win);
