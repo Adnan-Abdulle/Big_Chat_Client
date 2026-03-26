@@ -1,4 +1,4 @@
-/home/adnan/big-chat-server/build/CMakeFiles/main.dir
-/home/adnan/big-chat-server/build/CMakeFiles/format.dir
-/home/adnan/big-chat-server/build/CMakeFiles/edit_cache.dir
-/home/adnan/big-chat-server/build/CMakeFiles/rebuild_cache.dir
+/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/build/CMakeFiles/main.dir
+/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/build/CMakeFiles/format.dir
+/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/build/CMakeFiles/edit_cache.dir
+/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/build/CMakeFiles/rebuild_cache.dir

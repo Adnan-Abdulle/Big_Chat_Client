@@ -11,11 +11,15 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/main.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/protocol.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/network.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/client.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_ui.c)
-list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/main.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_pages.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_channel.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_input.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/recv_buffer.c)
 
 set(main_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.c
@@ -23,7 +27,10 @@ set(main_SOURCES
     ${CMAKE_SOURCE_DIR}/src/network.c
     ${CMAKE_SOURCE_DIR}/src/client.c
     ${CMAKE_SOURCE_DIR}/src/ncurses_ui.c
-
+    ${CMAKE_SOURCE_DIR}/src/ncurses_pages.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_channel.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_input.c
+    ${CMAKE_SOURCE_DIR}/src/recv_buffer.c
 )
 
 set(main_HEADERS
@@ -32,10 +39,6 @@ set(main_HEADERS
 add_executable(main ${main_SOURCES})
 target_include_directories(main PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(main PRIVATE /usr/local/include)
-find_package(Curses REQUIRED)
-target_include_directories(main PRIVATE ${CURSES_INCLUDE_DIR})
-target_link_libraries(main PRIVATE ${CURSES_LIBRARIES})
-
 
 # Check if the system uses 64-bit libraries
 get_property(LIB64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
@@ -49,6 +52,11 @@ endif()
 
 target_link_directories(main PRIVATE /usr/local/lib${LIBSUFFIX})
 target_link_options(main PRIVATE ${INSTRUMENTATION_FLAGS_LIST})
+
+find_library(LIB_ncurses NAMES ncurses)
+if(LIB_ncurses)
+    target_link_libraries(main PRIVATE ${LIB_ncurses})
+endif()
 
 
 message("C Compiler: ${CMAKE_C_COMPILER}")
@@ -194,12 +202,12 @@ add_custom_target(format
 
 add_dependencies(main format)
 
-#add_custom_command(
-    #TARGET main POST_BUILD
-   # COMMAND ${CLANG_TIDY} ${SOURCES} ${HEADERS} -quiet --warnings-as-errors='*' -checks=*,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-llvmlibc-restrict-system-libc-headers,-altera-struct-pack-align,-readability-identifier-length,-altera-unroll-loops,-cppcoreguidelines-init-variables,-cert-err33-c,-modernize-macro-to-enum,-bugprone-easily-swappable-parameters,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-altera-id-dependent-backward-branch,-concurrency-mt-unsafe,-misc-unused-parameters,-hicpp-signed-bitwise,-google-readability-todo,-cert-msc30-c,-cert-msc50-cpp,-readability-function-cognitive-complexity,-clang-analyzer-security.insecureAPI.strcpy,-cert-env33-c,-android-cloexec-accept,-clang-analyzer-security.insecureAPI.rand,-misc-include-cleaner,-llvm-header-guard -- ${STANDARD_FLAGS} -I${CMAKE_SOURCE_DIR}/include -I/usr/local/include
-  #  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
- #   COMMENT "Running clang-tidy"
-#)
+add_custom_command(
+    TARGET main POST_BUILD
+    COMMAND ${CLANG_TIDY} ${SOURCES} ${HEADERS} -quiet --warnings-as-errors='*' -checks=*,-llvmlibc-restrict-system-libc-headers,-altera-struct-pack-align,-readability-identifier-length,-altera-unroll-loops,-cppcoreguidelines-init-variables,-cert-err33-c,-modernize-macro-to-enum,-bugprone-easily-swappable-parameters,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-altera-id-dependent-backward-branch,-concurrency-mt-unsafe,-misc-unused-parameters,-hicpp-signed-bitwise,-google-readability-todo,-cert-msc30-c,-cert-msc50-cpp,-readability-function-cognitive-complexity,-clang-analyzer-security.insecureAPI.strcpy,-cert-env33-c,-android-cloexec-accept,-clang-analyzer-security.insecureAPI.rand,-misc-include-cleaner,-llvm-header-guard -- ${STANDARD_FLAGS} -I${CMAKE_SOURCE_DIR}/include -I/usr/local/include
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running clang-tidy"
+)
 
 if (CMAKE_C_COMPILER MATCHES ".*/clang.*")
     # Add a custom target for clang --analyze
@@ -218,10 +226,10 @@ if (CMAKE_C_COMPILER MATCHES ".*/clang.*")
     )
 endif ()
 
-#add_custom_command(
- #   TARGET main POST_BUILD
-  #  COMMAND ${CPPCHECK} --error-exitcode=1 --force --quiet --inline-suppr --library=posix --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=unmatchedSuppression --suppress=checkersReport -I${CMAKE_SOURCE_DIR}/include -I/usr/local/include ${SOURCES} ${HEADERS}
-   # WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    #COMMENT "Running cppcheck"
-#)
+add_custom_command(
+    TARGET main POST_BUILD
+    COMMAND ${CPPCHECK} --error-exitcode=1 --force --quiet --inline-suppr --library=posix --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=unmatchedSuppression --suppress=checkersReport -I${CMAKE_SOURCE_DIR}/include -I/usr/local/include ${SOURCES} ${HEADERS}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Running cppcheck"
+)
 

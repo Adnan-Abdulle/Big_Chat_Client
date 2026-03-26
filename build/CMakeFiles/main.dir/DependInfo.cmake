@@ -8,11 +8,16 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/adnan/big-chat-server/src/client.c" "CMakeFiles/main.dir/src/client.c.o" "gcc" "CMakeFiles/main.dir/src/client.c.o.d"
-  "/home/adnan/big-chat-server/src/main.c" "CMakeFiles/main.dir/src/main.c.o" "gcc" "CMakeFiles/main.dir/src/main.c.o.d"
-  "/home/adnan/big-chat-server/src/ncurses_ui.c" "CMakeFiles/main.dir/src/ncurses_ui.c.o" "gcc" "CMakeFiles/main.dir/src/ncurses_ui.c.o.d"
-  "/home/adnan/big-chat-server/src/network.c" "CMakeFiles/main.dir/src/network.c.o" "gcc" "CMakeFiles/main.dir/src/network.c.o.d"
-  "/home/adnan/big-chat-server/src/protocol.c" "CMakeFiles/main.dir/src/protocol.c.o" "gcc" "CMakeFiles/main.dir/src/protocol.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/client.c" "CMakeFiles/main.dir/src/client.c.o" "gcc" "CMakeFiles/main.dir/src/client.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/main.c" "CMakeFiles/main.dir/src/main.c.o" "gcc" "CMakeFiles/main.dir/src/main.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/ncurses_channel.c" "CMakeFiles/main.dir/src/ncurses_channel.c.o" "gcc" "CMakeFiles/main.dir/src/ncurses_channel.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/ncurses_input.c" "CMakeFiles/main.dir/src/ncurses_input.c.o" "gcc" "CMakeFiles/main.dir/src/ncurses_input.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/ncurses_pages.c" "CMakeFiles/main.dir/src/ncurses_pages.c.o" "gcc" "CMakeFiles/main.dir/src/ncurses_pages.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/ncurses_ui.c" "CMakeFiles/main.dir/src/ncurses_ui.c.o" "gcc" "CMakeFiles/main.dir/src/ncurses_ui.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/network.c" "CMakeFiles/main.dir/src/network.c.o" "gcc" "CMakeFiles/main.dir/src/network.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/protocol.c" "CMakeFiles/main.dir/src/protocol.c.o" "gcc" "CMakeFiles/main.dir/src/protocol.c.o.d"
+  "/home/jago/adnan-patchup/adnan-push/Big_Chat_Client/src/recv_buffer.c" "CMakeFiles/main.dir/src/recv_buffer.c.o" "gcc" "CMakeFiles/main.dir/src/recv_buffer.c.o.d"
+  "" "main" "gcc" "CMakeFiles/main.dir/link.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

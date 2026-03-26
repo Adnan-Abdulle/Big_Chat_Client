@@ -1,0 +1,276 @@
+-- Protocol ASN.1 Module (Version 0.2 Public)
+-- This module defines a binary protocol with flattened message types
+-- Extended with messaging capabilities (Channel, Message)
+
+Protocol DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+-- ============================================================================
+-- Enumerations
+-- ============================================================================
+
+Version ::= ENUMERATED {
+    v0 (0),
+    v1 (1),
+    v2 (2)
+}
+
+MessageType ::= ENUMERATED {
+    serverRegistrationRequest       (0),    -- 0x00
+    serverRegistrationResponse      (1),    -- 0x01
+    serverHealthCheckRequest        (4),    -- 0x04
+    serverHealthCheckResponse       (5),    -- 0x05
+    serverActivationRequest         (8),    -- 0x08
+    serverActivationResponse        (9),    -- 0x09
+    getActivatedServerRequest       (10),   -- 0x0A
+    getActivatedServerResponse      (11),   -- 0x0B
+    serverDeactivationRequest       (14),   -- 0x0E
+    serverDeactivationResponse      (15),   -- 0x0F
+    userRegistrationRequest         (16),   -- 0x10
+    userRegistrationResponse        (17),   -- 0x11
+    getUserInfoRequest              (18),   -- 0x12
+    getUserInfoResponse             (19),   -- 0x13
+    loginOrLogoutRequest            (20),   -- 0x14
+    loginOrLogoutResponse           (21),   -- 0x15
+    logRequest                      (24),   -- 0x18
+    logResponse                     (25),   -- 0x19
+    getChannelInfoRequest           (34),   -- 0x22
+    getChannelInfoResponse          (35),   -- 0x23
+    listAllChannelsRequest          (42),   -- 0x2A
+    listAllChannelsResponse         (43),   -- 0x2B
+    sendMessageRequest              (48),   -- 0x30
+    sendMessageResponse             (49),   -- 0x31
+    getMessageRequest               (50),   -- 0x32
+    getMessageResponse              (51)    -- 0x33
+}
+
+Status ::= ENUMERATED {
+    -- Success
+    successOk               (0),    -- 0x00
+    -- Sender errors (0x40-0x7F)
+    senderInvalidVersion    (64),   -- 0x40
+    senderInvalidType       (65),   -- 0x41
+    senderInvalidSize       (66),   -- 0x42
+    senderMalformedRequest  (67),   -- 0x43
+    senderInvalidCredentials (68),  -- 0x44
+    senderNotFound          (69),   -- 0x45
+    senderAlreadyExists     (70),   -- 0x46
+    senderNotRegistered     (71),   -- 0x47
+    senderForbidden         (72),   -- 0x48
+    senderNotChannelMember  (73),   -- 0x49
+    -- Receiver errors (0x80-0xBF)
+    receiverInternalError   (128),  -- 0x80
+    receiverServiceUnavailable (129), -- 0x81
+    receiverResourceExhausted (130), -- 0x82
+    receiverMessageTooLarge (131),  -- 0x83
+    receiverTimeout         (132)   -- 0x84
+}
+
+UserStatus ::= ENUMERATED {
+    offline (0),
+    online  (1)
+}
+
+Flag ::= ENUMERATED {
+    no  (0),
+    yes (1)
+}
+
+-- ============================================================================
+-- Basic Types
+-- ============================================================================
+
+-- 8-bit unsigned integer (0..255)
+UInt8 ::= INTEGER (0..255)
+
+-- 16-bit unsigned integer (0..65535)
+UInt16 ::= INTEGER (0..65535)
+
+-- 32-bit unsigned integer (0..4294967295)
+UInt32 ::= INTEGER (0..4294967295)
+
+-- 64-bit unsigned integer
+UInt64 ::= INTEGER (0..18446744073709551615)
+
+-- Timestamp in seconds since Unix epoch (big-endian in wire format)
+Timestamp ::= UInt64
+
+-- IPv4 address as 4 octets (a.b.c.d format)
+IPv4Address ::= SEQUENCE {
+    a   UInt8,
+    b   UInt8,
+    c   UInt8,
+    d   UInt8
+}
+
+-- ============================================================================
+-- Custom Types
+-- ============================================================================
+
+-- Server identifier (single byte)
+ServerId ::= UInt8
+
+-- User identifier (single byte)
+UserId ::= UInt8
+
+-- Channel identifier (single byte)
+ChannelId ::= UInt8
+
+-- Authentication credentials
+Auth ::= SEQUENCE {
+    username    OCTET STRING (SIZE (16)),
+    password    OCTET STRING (SIZE (16))
+}
+
+-- ============================================================================
+-- Protocol Header
+-- ============================================================================
+
+-- Protocol header (8 bytes total)
+-- Wire format: version (1) + type (1) + status (1) + padding (1) + size (4, big-endian)
+Header ::= SEQUENCE {
+    version     Version,
+    type        MessageType,
+    status      Status,
+    -- 1 byte padding (reserved)
+    size        UInt32      -- big-endian in wire format
+}
+
+-- ============================================================================
+-- Message Body Types
+-- ============================================================================
+
+-- Server registration (request/response)
+ServerRegistration ::= SEQUENCE {
+    ip      IPv4Address,
+    id      ServerId
+}
+
+-- Server health check (request/response)
+ServerHealthCheck ::= SEQUENCE {
+    ip      IPv4Address,
+    id      ServerId
+}
+
+-- Server activation (request/response)
+ServerActivation ::= SEQUENCE {
+    ip      IPv4Address,
+    id      ServerId
+}
+
+-- Get activated server (request/response)
+GetActivatedServer ::= SEQUENCE {
+    ip      IPv4Address,
+    id      ServerId
+}
+
+-- Server deactivation (request/response)
+ServerDeactivation ::= SEQUENCE {
+    ip      IPv4Address,
+    id      ServerId
+}
+
+-- User registration (request/response)
+UserRegistration ::= SEQUENCE {
+    auth    Auth,
+    id      UserId
+}
+
+-- Get user info (request/response)
+GetUserInfo ::= SEQUENCE {
+    auth        Auth,
+    username    OCTET STRING (SIZE (16)),
+    userId      UserId
+}
+
+-- Login or logout (request/response)
+LoginOrLogout ::= SEQUENCE {
+    auth    Auth,
+    ip      IPv4Address,
+    status  UserStatus
+}
+
+-- Log (request/response)
+-- Wire format: id (1) + padding (1) + messageLen (2, big-endian) + message (variable)
+Log ::= SEQUENCE {
+    id          ServerId,
+    -- 1 byte padding (reserved)
+    messageLen  UInt16,
+    message     OCTET STRING (SIZE (0..65535))
+}
+
+-- Get channel info (request/response)
+GetChannelInfo ::= SEQUENCE {
+    auth            Auth,
+    channelname     OCTET STRING (SIZE (16)),
+    channelId       ChannelId,
+    userIdLen       UInt8,
+    userIds         SEQUENCE OF UserId
+}
+
+-- List all channels (request/response)
+ListAllChannels ::= SEQUENCE {
+    auth            Auth,
+    channelIdLen    UInt8,
+    channelIds      SEQUENCE OF ChannelId
+}
+
+-- Send message (request/response)
+SendMessage ::= SEQUENCE {
+    auth        Auth,
+    timestamp   Timestamp,
+    messageLen  UInt16,
+    channelId   ChannelId,
+    message     OCTET STRING (SIZE (0..65535))
+}
+
+-- Get message (request/response)
+GetMessage ::= SEQUENCE {
+    auth        Auth,
+    timestamp   Timestamp,
+    messageLen  UInt16,
+    channelId   ChannelId,
+    senderId    UserId,
+    message     OCTET STRING (SIZE (0..65535))
+}
+
+-- ============================================================================
+-- Protocol Data Unit (PDU)
+-- ============================================================================
+
+-- Message body discriminated by type
+MessageBody ::= CHOICE {
+    serverRegistrationRequest       [0]  ServerRegistration,
+    serverRegistrationResponse      [1]  ServerRegistration,
+    serverHealthCheckRequest        [4]  ServerHealthCheck,
+    serverHealthCheckResponse       [5]  ServerHealthCheck,
+    serverActivationRequest         [8]  ServerActivation,
+    serverActivationResponse        [9]  ServerActivation,
+    getActivatedServerRequest       [10] GetActivatedServer,
+    getActivatedServerResponse      [11] GetActivatedServer,
+    serverDeactivationRequest       [14] ServerDeactivation,
+    serverDeactivationResponse      [15] ServerDeactivation,
+    userRegistrationRequest         [16] UserRegistration,
+    userRegistrationResponse        [17] UserRegistration,
+    getUserInfoRequest              [18] GetUserInfo,
+    getUserInfoResponse             [19] GetUserInfo,
+    loginOrLogoutRequest            [20] LoginOrLogout,
+    loginOrLogoutResponse           [21] LoginOrLogout,
+    logRequest                      [24] Log,
+    logResponse                     [25] Log,
+    getChannelInfoRequest           [34] GetChannelInfo,
+    getChannelInfoResponse          [35] GetChannelInfo,
+    listAllChannelsRequest          [42] ListAllChannels,
+    listAllChannelsResponse         [43] ListAllChannels,
+    sendMessageRequest              [48] SendMessage,
+    sendMessageResponse             [49] SendMessage,
+    getMessageRequest               [50] GetMessage,
+    getMessageResponse              [51] GetMessage
+}
+
+-- Complete protocol data unit
+Data ::= SEQUENCE {
+    header  Header,
+    body    MessageBody
+}
+
+END

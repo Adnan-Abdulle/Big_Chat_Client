@@ -1,0 +1,1196 @@
+Independent Submission                                BIG Working Group
+Request for Comments                                      February 2026
+
+
+            Banter in Groups (BIG) Protocol Version 0.2
+
+Abstract
+
+   This document specifies the Banter in Groups (BIG) protocol
+   version 0.2, a lightweight binary protocol designed for server
+   management, user authentication, and real-time messaging over TCP.
+   The protocol uses a REST-like resource/action model encoded in
+   binary format suitable for resource-constrained environments.
+
+Copyright Notice
+
+   Copyright (c) 2026 BIG Working Group.  All rights reserved.
+
+Table of Contents
+
+   1.  Introduction
+   2.  Conventions and Definitions
+   3.  Protocol Overview
+       3.1.  Transport
+       3.2.  Message Structure
+   4.  Header Format
+       4.1.  Version Field
+       4.2.  Type Field
+       4.3.  Status Field
+             4.3.1.  Status Categories
+             4.3.2.  Success Status
+             4.3.3.  Sender Error Status
+             4.3.4.  Receiver Error Status
+             4.3.5.  Status Field Usage
+       4.4.  Size Field
+   5.  Common Data Types
+       5.1.  IPv4Address
+       5.2.  Timestamp
+       5.3.  Auth
+       5.4.  Identifiers
+   6.  Message Bodies
+       6.1.  Server Resource
+             6.1.1.  Server Create (Server Registration)
+             6.1.2.  Server Update (Server Health Check)
+       6.2.  ActivatedServer Resource
+             6.2.1.  ActivatedServer Create (Server Activation)
+             6.2.2.  ActivatedServer Read (Get Activated Server)
+             6.2.3.  ActivatedServer Delete (Server Deactivation)
+       6.3.  User Resource
+             6.3.1.  User Create (User Registration)
+             6.3.2.  User Read (Get User Info)
+             6.3.3.  User Update (User Log In or Out)
+       6.4.  Log Resource
+             6.4.1.  Log Create (Write Log)
+       6.5.  Channel Resource
+             6.5.1.  Channel Read (Get Channel Info)
+       6.6.  Channels Resource
+             6.6.1.  Channels Read (List All Channels)
+       6.7.  Message Resource
+             6.7.1.  Message Create (Send Message)
+             6.7.2.  Message Read (Get Or Receive Message)
+   7.  Message Flow
+       7.1.  Request-Response Model
+       7.2.  Error Handling
+   8.  Security Considerations
+   9.  References
+       9.1.  Normative References
+       9.2.  Informative References
+   Appendix A.  Type Byte Quick Reference
+   Appendix B.  Status Code Quick Reference
+   Appendix C.  Complete Message Size Reference
+   Authors' Addresses
+
+
+1.  Introduction
+
+   The Banter in Groups (BIG) protocol provides a compact, efficient
+   mechanism for managing multiple server infrastructure, user
+   accounts, and real-time messaging.  Version 0.2 extends the
+   protocol with channel-based messaging capabilities while maintaining
+   backward compatibility with the header format established in earlier
+   versions.
+
+   BIG is designed for scenarios where bandwidth efficiency and parsing
+   speed are critical, such as embedded systems, IoT devices, and
+   high-throughput server environments.
+
+   The protocol follows a REST-like model where operations are expressed
+   as combinations of:
+
+      -  Resource: The type of entity being operated upon
+      -  Action: The operation to perform (Create, Read, Update, Delete)
+      -  Direction: Whether the message is a Request or Response
+
+2.  Conventions and Definitions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   The following terms are used throughout this document:
+
+   PDU (Protocol Data Unit):
+      A complete BIG message consisting of a header and optional body.
+
+   Resource:
+      An entity type that can be operated upon (e.g., Server, User,
+      Channel).
+
+   Action:
+      An operation type following CRUD semantics (Create, Read, Update,
+      Delete).
+
+   Big-Endian:
+      Network byte order where the most significant byte is transmitted
+      first.  Also known as "network order".
+
+3.  Protocol Overview
+
+3.1.  Transport
+
+   BIG operates over TCP and MUST use a reliable, connection-oriented
+   transport.  The default port for BIG is TCP port 42069.
+   Implementations MAY use alternative ports as configured.
+
+   Implementations MUST support TCP segment reassembly, as a single BIG
+   message MAY span multiple TCP segments.  Implementations SHOULD NOT
+   assume that TCP segment boundaries align with message boundaries.
+
+3.2.  Message Structure
+
+   Every BIG message consists of a fixed-size header followed by a
+   variable-length body:
+
+   +----------------+------------------------+
+   |     Header     |          Body          |
+   |   (8 bytes)    |   (variable length)    |
+   +----------------+------------------------+
+
+   The header is REQUIRED for all messages.  The body MAY be empty
+   (zero length) for certain message types, particularly error
+   responses.
+
+   Multiple PDUs MAY be sent consecutively on a single TCP connection.
+   Implementations MUST process PDUs in the order received.
+
+4.  Header Format
+
+   The header is exactly 8 bytes and MUST be present in every message:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |    Version    |     Type      |    Status     |   Reserved    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Size (32-bit)                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Version (8 bits):
+      Protocol version identifier.  See Section 4.1.
+
+   Type (8 bits):
+      Message type encoded as resource/action/direction.  See
+      Section 4.2.
+
+   Status (8 bits):
+      Result status code.  See Section 4.3.
+
+   Reserved (8 bits):
+      Reserved for future use.  SHOULD be set to zero on transmission.
+      Receivers MUST ignore this field.
+
+   Size (32 bits):
+      Body length in bytes, big-endian.  See Section 4.4.
+
+4.1.  Version Field
+
+   The Version field is a single byte encoding both major and minor
+   version numbers:
+
+    0 1 2 3 4 5 6 7
+   +-+-+-+-+-+-+-+-+
+   | Major | Minor |
+   +-+-+-+-+-+-+-+-+
+
+   Major Version (4 bits):
+      The major version number.  Changes to this field indicate
+      breaking changes to the protocol.
+
+   Minor Version (4 bits):
+      The minor version number.  Changes to this field indicate
+      backward-compatible additions.
+
+   For this specification, the Version byte MUST be 0x02:
+
+      -  Major Version: 0 (0x0)
+      -  Minor Version: 2 (0x2)
+
+   Implementations receiving a message with an unsupported major version
+   MUST reject the message and SHOULD close the connection.
+   Implementations receiving a message with a higher minor version than
+   supported SHOULD process the message but MAY ignore unknown fields.
+
+   Defined version values:
+
+   +-------+-------+------------+
+   | Major | Minor | Byte Value |
+   +-------+-------+------------+
+   |   0   |   0   |    0x00    |
+   |   0   |   1   |    0x01    |
+   |   0   |   2   |    0x02    |
+   +-------+-------+------------+
+
+4.2.  Type Field
+
+   The Type field encodes the message type as a combination of Resource,
+   Action, and Direction in a single byte:
+
+    0 1 2 3 4 5 6 7
+   +-+-+-+-+-+-+-+-+
+   |Resource |Act|D|
+   +-+-+-+-+-+-+-+-+
+
+   Resource (5 bits):
+      Identifies the entity type.  Bits 0-4 (most significant).
+
+   Action (2 bits):
+      Identifies the operation.  Bits 5-6.
+
+   Direction (1 bit):
+      Identifies request or response.  Bit 7 (least significant).
+
+   The Type byte value is computed as:
+
+      Type = (Resource << 3) | (Action << 1) | Direction
+
+4.2.1.  Resource Values
+
+   +-------------------+-------+
+   | Resource          | Value |
+   +-------------------+-------+
+   | Server            |   0   |
+   | ActivatedServer   |   1   |
+   | User              |   2   |
+   | Log               |   3   |
+   | Channel           |   4   |
+   | Channels          |   5   |
+   | Message           |   6   |
+   | Messages          |   7   |
+   +-------------------+-------+
+
+   Values 8-31 are reserved for future use.  Implementations receiving
+   an unknown Resource value MUST respond with InvalidType (0x41).
+
+4.2.2.  Action Values
+
+   +----------+-------+
+   | Action   | Value |
+   +----------+-------+
+   | Create   |   0   |
+   | Read     |   1   |
+   | Update   |   2   |
+   | Delete   |   3   |
+   +----------+-------+
+
+4.2.3.  Direction Values
+
+   +-----------+-------+
+   | Direction | Value |
+   +-----------+-------+
+   | Request   |   0   |
+   | Response  |   1   |
+   +-----------+-------+
+
+4.2.4.  Valid Type Combinations
+
+   Not all combinations of Resource and Action are valid.  The following
+   table lists all valid combinations for version 0.2:
+
+   +-------------------+--------+------+--------+--------+
+   | Resource          | Create | Read | Update | Delete |
+   +-------------------+--------+------+--------+--------+
+   | Server            |  Yes   |  No  |  Yes   |   No   |
+   | ActivatedServer   |  Yes   | Yes  |   No   |  Yes   |
+   | User              |  Yes   | Yes  |  Yes   |   No   |
+   | Log               |  Yes   |  No  |   No   |   No   |
+   | Channel           |   No   | Yes  |   No   |   No   |
+   | Channels          |   No   | Yes  |   No   |   No   |
+   | Message           |  Yes   | Yes  |   No   |   No   |
+   | Messages          |   No   |  No  |   No   |   No   |
+   +-------------------+--------+------+--------+--------+
+
+   Implementations MUST reject requests with invalid Resource/Action
+   combinations by responding with InvalidType (0x41).
+
+4.3.  Status Field
+
+   The Status field indicates the result of processing a message.  It
+   uses a bitfield encoding with a 2-bit category and 6-bit specific
+   error code:
+
+    0 1 2 3 4 5 6 7
+   +-+-+-+-+-+-+-+-+
+   |Cat|  Specific |
+   +-+-+-+-+-+-+-+-+
+
+   Category (2 bits):
+      Indicates the error category.  Bits 0-1 (most significant).
+
+   Specific (6 bits):
+      Specific error code within the category.  Bits 2-7.
+
+4.3.1.  Status Categories
+
+   +----------+-------+----------------------------------+
+   | Category | Value | Description                      |
+   +----------+-------+----------------------------------+
+   | Success  |  00   | Operation completed (0x00)       |
+   | Sender   |  01   | Error caused by sender (0x4x)    |
+   | Receiver |  10   | Error caused by receiver (0x8x)  |
+   | Reserved |  11   | Reserved for future use          |
+   +----------+-------+----------------------------------+
+
+4.3.2.  Success Status
+
+   +------+----------+--------+-----------------------------+
+   | Code | Binary   | Name   | Description                 |
+   +------+----------+--------+-----------------------------+
+   | 0x00 | 00000000 | Ok     | Request processed success   |
+   +------+----------+--------+-----------------------------+
+
+4.3.3.  Sender Error Status (0x40-0x7F)
+
+   Sender errors indicate the request was invalid or cannot be
+   fulfilled due to sender-side issues.
+
+   +------+----------+--------------------+-------------------------+
+   | Code | Binary   | Name               | Description             |
+   +------+----------+--------------------+-------------------------+
+   | 0x40 | 01000000 | InvalidVersion     | Version not supported   |
+   | 0x41 | 01000001 | InvalidType        | Bad Resource/Action     |
+   | 0x42 | 01000010 | InvalidSize        | Size field mismatch     |
+   | 0x43 | 01000011 | MalformedRequest   | Cannot parse body       |
+   | 0x44 | 01000100 | InvalidCredentials | Auth validation failed  |
+   | 0x45 | 01000101 | NotFound           | Resource doesn't exist  |
+   | 0x46 | 01000110 | AlreadyExists      | Resource already exists |
+   | 0x47 | 01000111 | NotRegistered      | Precondition not met    |
+   | 0x48 | 01001000 | Forbidden          | Permission denied       |
+   | 0x49 | 01001001 | NotChannelMember   | User not in channel     |
+   +------+----------+--------------------+-------------------------+
+
+   Values 0x4A-0x7F are reserved for future Sender error codes.
+
+4.3.4.  Receiver Error Status (0x80-0xBF)
+
+   Receiver errors indicate the receiver failed to process a valid
+   request.
+
+   +------+----------+--------------------+-------------------------+
+   | Code | Binary   | Name               | Description             |
+   +------+----------+--------------------+-------------------------+
+   | 0x80 | 10000000 | InternalError      | Unexpected error        |
+   | 0x81 | 10000001 | ServiceUnavailable | Temporarily unavailable |
+   | 0x82 | 10000010 | ResourceExhausted  | Out of resources        |
+   | 0x83 | 10000011 | MessageTooLarge    | Exceeds size limit      |
+   | 0x84 | 10000100 | Timeout            | Operation timed out     |
+   +------+----------+--------------------+-------------------------+
+
+   Values 0x85-0xBF are reserved for future Receiver error codes.
+
+4.3.5.  Status Field Usage
+
+   For Request messages (Direction = 0), the Status field SHOULD be
+   set to Ok (0x00).  Receivers MUST ignore the Status field in
+   Request messages.
+
+   For Response messages (Direction = 1), the Status field MUST
+   accurately reflect the processing result.
+
+   When Status is not Ok (0x00), the response body MAY be empty or
+   MAY contain error details in an implementation-defined format.
+
+   Implementations can determine the error category by examining the
+   upper two bits:
+
+      -  Success: (status & 0xC0) == 0x00
+      -  Sender Error: (status & 0xC0) == 0x40
+      -  Receiver Error: (status & 0xC0) == 0x80
+
+4.4.  Size Field
+
+   The Size field is a 32-bit unsigned integer in big-endian byte order
+   specifying the length of the message body in bytes.
+
+   The Size field MUST accurately reflect the body length.  A Size of
+   zero indicates no body is present.
+
+   The maximum body size is 4,294,967,295 bytes (2^32 - 1).
+   Implementations SHOULD impose reasonable limits based on available
+   resources and MAY reject messages exceeding implementation-specific
+   thresholds.
+
+   Implementations MUST NOT process the body until the complete number
+   of bytes specified by Size have been received.
+
+5.  Common Data Types
+
+   This section defines data types used across multiple message bodies.
+
+5.1.  IPv4Address
+
+   An IPv4 address encoded as four consecutive bytes:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |       A       |       B       |       C       |       D       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The address A.B.C.D is encoded with A in the first byte, B in the
+   second, C in the third, and D in the fourth.
+
+   Example: 192.168.1.100 is encoded as 0xC0 0xA8 0x01 0x64.
+
+5.2.  Timestamp
+
+   A 64-bit unsigned integer in big-endian byte order representing
+   seconds since the Unix epoch (1970-01-01T00:00:00Z).
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                      Timestamp (64-bit)                       +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Implementations MUST use UTC for all timestamp values.
+   Implementations SHOULD ensure clock synchronization via NTP or
+   similar mechanisms.
+
+5.3.  Auth
+
+   Authentication credentials consisting of username and password:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                       Username (16 bytes)                     +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                       Password (16 bytes)                     +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Total size: 32 bytes
+
+   Username (16 bytes):
+      The username as a null-terminated or null-padded ASCII string.
+      If the username is shorter than 16 bytes, the remaining bytes
+      MUST be filled with null (0x00) bytes.  The username MUST be
+      15 ASCII characters or less as it MUST be null-terminated.
+
+   Password (16 bytes):
+      The password as a null-terminated or null-padded ASCII string.
+      If the password is shorter than 16 bytes, the remaining bytes
+      MUST be filled with null (0x00) bytes.  The password MUST be
+      15 ASCII characters or less as it MUST be null-terminated.
+
+   Implementations MUST validate Auth credentials before processing
+   authenticated requests.  Invalid credentials MUST result in an
+   InvalidCredentials (0x44) response.  Unless otherwise specified,
+   all Auth credentials in the Response message body MUST be set to
+   zero.
+
+5.4.  Identifiers
+
+   The protocol defines three identifier types, each a single unsigned
+   byte (0-255):
+
+   ServerId:
+      Unique identifier for a server instance.
+
+   UserId:
+      Unique identifier for a user account.
+
+   ChannelId:
+      Unique identifier for a messaging channel.
+
+6.  Message Bodies
+
+   This section defines the body format for each valid Resource/Action
+   combination.  Unless otherwise specified, all multi-byte integers
+   are in big-endian byte order.
+
+6.1.  Server Resource
+
+   The Server resource represents a server instance in the distributed
+   system.
+
+6.1.1.  Server Create (Server Registration)
+
+   Type byte: 0x00 (Request), 0x01 (Response)
+
+   Used to register a new server with the system.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                        IPv4Address                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   ServerId    |
+   +-+-+-+-+-+-+-+-+
+
+   Total size: 5 bytes
+
+   Request: The server sends the desired IP address to server manager.
+   ServerId SHOULD be set to zero; the server manager MUST ignore
+   ServerId and assigns the identifier.
+
+   Response: The server manager returns the registered IP address and
+   assigned ServerId.
+
+   The server manager MUST reject registration if the IP address
+   already exists, responding with AlreadyExists (0x46).
+
+6.1.2.  Server Update (Server Health Check)
+
+   Type byte: 0x04 (Request), 0x05 (Response)
+
+   Used for periodic health check / keep-alive messages.
+
+   Body format is identical to Server Create (5 bytes).
+
+   Servers MUST send health check messages at regular intervals of
+   5 seconds or less to the server manager.
+
+   Health check timeout behavior:
+
+      -  5 seconds (1 missed interval): Server MAY be marked inactive
+         and be deactivated.
+      -  10 seconds (2 missed intervals): Server SHOULD be marked
+         inactive and be deactivated.
+      -  15 seconds (3 missed intervals): Server MUST be marked
+         inactive and be deactivated.
+
+6.2.  ActivatedServer Resource
+
+   The ActivatedServer resource represents servers that are currently
+   active and available for service.
+
+6.2.1.  ActivatedServer Create (Server Activation)
+
+   Type byte: 0x08 (Request), 0x09 (Response)
+
+   Used to activate a registered server for service.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                        IPv4Address                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   ServerId    |
+   +-+-+-+-+-+-+-+-+
+
+   Total size: 5 bytes
+
+   A server MUST be registered before it can be activated.  Attempting
+   to activate an unregistered server MUST result in a NotRegistered
+   (0x47) response from the server manager.
+
+6.2.2.  ActivatedServer Read (Get Activated Server)
+
+   Type byte: 0x0A (Request), 0x0B (Response)
+
+   Used to query information about an active server.
+
+   Body format is identical to ActivatedServer Create (5 bytes).
+
+   Request: The client SHOULD set IPv4Address and ServerId to zero.
+   The server manager MUST ignore these fields.
+
+   Response: The server manager returns the IP address and ServerId
+   of the activated server.
+
+6.2.3.  ActivatedServer Delete (Server Deactivation)
+
+   Type byte: 0x0E (Request), 0x0F (Response)
+
+   Used to deactivate a server, removing it from active service.
+
+   Body format is identical to ActivatedServer Create (5 bytes).
+
+   Deactivating a server does not unregister it; the server MAY be
+   reactivated later.
+
+   The server MUST reject deactivation if the server is already
+   deactivated, responding with NotFound (0x45).
+
+6.3.  User Resource
+
+   The User resource represents user accounts in the system.
+
+6.3.1.  User Create (User Registration)
+
+   Type byte: 0x10 (Request), 0x11 (Response)
+
+   Used to create a new user account.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                       Username (16 bytes)                     +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                       Password (16 bytes)                     +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |    UserId     |
+   +-+-+-+-+-+-+-+-+
+
+   Total size: 33 bytes
+
+   Request: The client provides desired credentials.  UserId SHOULD be
+   zero; the server MUST ignore UserId and assigns the identifier.
+
+   Response: Returns the Auth credentials and assigned UserId.
+
+   The server MUST reject registration if the username already exists,
+   responding with AlreadyExists (0x46).
+
+6.3.2.  User Read (Get User Info)
+
+   Type byte: 0x12 (Request), 0x13 (Response)
+
+   Used to retrieve user information.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                          Auth (32 bytes)                      +
+   |                             ...                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                    Username (16 bytes)                        +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | TargetUserId  |
+   +-+-+-+-+-+-+-+-+
+
+   Total size: 49 bytes
+
+   Auth: Credentials of the requesting user (for authentication).
+
+   Target UserId: The user identifier being queried.
+
+   Username: In the response, the username of the queried user.
+
+   The requesting user MUST be authenticated.  Implementations MAY
+   impose authorization restrictions on which users can query other
+   users' information.
+
+6.3.3.  User Update (User Log In or Out)
+
+   Type byte: 0x14 (Request), 0x15 (Response)
+
+   Used to change a user's online status (log in or out).
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                          Auth (32 bytes)                      +
+   |                             ...                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         IPv4Address                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | UserStatus    |
+   +-+-+-+-+-+-+-+-+
+
+   Total size: 37 bytes
+
+   UserStatus values:
+
+   +---------+-------+
+   | Status  | Value |
+   +---------+-------+
+   | Offline |   0   |
+   | Online  |   1   |
+   +---------+-------+
+
+   For login (UserStatus = Online), the IPv4Address indicates the
+   client's address.
+
+   For logout (UserStatus = Offline), the IPv4Address SHOULD match the
+   address used during login.
+
+   The server SHOULD use the IPv4Address to send unsolicited responses
+   (Response messages sent without a corresponding Request) to the
+   client.
+
+6.4.  Log Resource
+
+   The Log resource is used for server logging and diagnostics.
+   Log messages are sent to the server manager.
+
+6.4.1.  Log Create (Write Log)
+
+   Type byte: 0x18 (Request), 0x19 (Response)
+
+   Used to submit a log message.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   ServerId    |   Reserved    |        MessageLen             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                      Message (variable)                       +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Minimum size: 4 bytes (empty message)
+
+   ServerId (1 byte):
+      The identifier of the server submitting the log.
+
+   Reserved (1 byte):
+      Reserved for future use.  MUST be set to zero.
+
+   MessageLen (2 bytes, big-endian):
+      Length of the Message field in bytes.
+
+   Message (variable):
+      The log message content.   UTF-8 encoding is RECOMMENDED.
+
+6.5.  Channel Resource
+
+   The Channel resource represents a messaging channel that users can
+   join to exchange messages.
+
+6.5.1.  Channel Read (Get Channel Info)
+
+   Type byte: 0x22 (Request), 0x23 (Response)
+
+   Used to retrieve channel information.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                          Auth (32 bytes)                      +
+   |                             ...                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                    ChannelName (16 bytes)                     +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  ChannelId    |  UserIdLen    |                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+       UserIds (variable)      +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Minimum size: 50 bytes (no users)
+
+   Auth (32 bytes):
+      Credentials of the requesting user.
+
+   ChannelName (16 bytes):
+      The channel name as a null-padded ASCII string.
+
+   ChannelId (1 byte):
+      The unique identifier of the channel.
+
+   UserIdLen (1 byte):
+      The number of UserIds in the following array.
+
+   UserIds (variable):
+      An array of UserId values, each 1 byte, representing users
+      currently in the channel.  Length is UserIdLen bytes.
+
+   The requesting user MUST be authenticated.
+
+6.6.  Channels Resource
+
+   The Channels resource provides a list of available channels.
+
+6.6.1.  Channels Read (List All Channels)
+
+   Type byte: 0x2A (Request), 0x2B (Response)
+
+   Used to retrieve a list of all available channels.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                          Auth (32 bytes)                      +
+   |                             ...                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | ChannelIdLen  |                                               |
+   +-+-+-+-+-+-+-+-+             ChannelIds (variable)             +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Minimum size: 33 bytes (no channels)
+
+   Auth (32 bytes):
+      Credentials of the requesting user.
+
+   ChannelIdLen (1 byte):
+      The number of ChannelIds in the following array.
+
+   ChannelIds (variable):
+      An array of ChannelId values, each 1 byte.  Length is
+      ChannelIdLen bytes.
+
+   The requesting user MUST be authenticated.
+
+6.7.  Message Resource
+
+   The Message resource represents individual messages within channels.
+
+6.7.1.  Message Create (Send Message)
+
+   Type byte: 0x30 (Request), 0x31 (Response)
+
+   Used to send a message to a channel.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                          Auth (32 bytes)                      +
+   |                             ...                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                       Timestamp (8 bytes)                     +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |          MessageLen           |  ChannelId    |               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               +
+   |                                                               |
+   +                      Message (variable)                       +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Minimum size: 43 bytes (empty message)
+
+   Auth (32 bytes):
+      Credentials of the sending user.
+
+   Timestamp (8 bytes):
+      Time the message was sent, in seconds since Unix epoch.
+
+   MessageLen (2 bytes, big-endian):
+      Length of the Message content in bytes.
+
+   ChannelId (1 byte):
+      The target channel identifier.
+
+   Message (variable):
+      The message content.  UTF-8 encoding is RECOMMENDED.
+
+   The sender MUST be authenticated and SHOULD be a member of the
+   target channel.
+
+   The server MUST send a Message Read response to all users in the
+   target channel as an unsolicited response.
+
+   The server MUST reject the message if the combination of ChannelId,
+   UserId, and Timestamp already exists, responding with AlreadyExists
+   (0x46).
+
+6.7.2.  Message Read (Get Or Receive Message)
+
+   Type byte: 0x32 (Request), 0x33 (Response)
+
+   Used to get or receive messages from a channel.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                          Auth (32 bytes)                      +
+   |                             ...                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                       Timestamp (8 bytes)                     +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |          MessageLen           |  ChannelId    |   SenderId    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                      Message (variable)                       +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Minimum size: 44 bytes (empty message)
+
+   Auth (32 bytes):
+      Credentials of the requesting user.
+
+   Timestamp (8 bytes):
+      Time the message was sent, in seconds since Unix epoch.
+
+   MessageLen (2 bytes, big-endian):
+      Length of the Message content in bytes.
+
+   ChannelId (1 byte):
+      The channel from which the message originated.
+
+   SenderId (1 byte):
+      The UserId of the message sender.
+
+   Message (variable):
+      The message content.  UTF-8 encoding is RECOMMENDED.
+
+   The requesting user MUST be authenticated and SHOULD be a member
+   of the channel.
+
+   The server MUST send this response to all users in the target
+   channel as an unsolicited response whenever a message is created.
+
+7.  Message Flow
+
+7.1.  Request-Response Model
+
+   BIG follows a strict request-response model.  For every Request
+   message, exactly one Response message MUST be sent.  However,
+   Response message can be sent without a Request message.
+
+   The Response MUST have:
+      -  The same Resource and Action as the Request
+      -  Direction set to Response (1)
+      -  An appropriate Status code
+
+   Implementations MUST process requests in order and MUST NOT
+   reorder responses.
+
+   Example message flow for user login:
+
+   Client                                              Server
+     |                                                    |
+     |  User.Update.Request (Login)                       |
+     |--------------------------------------------------->|
+     |                                                    |
+     |                       User.Update.Response (Ok)    |
+     |<---------------------------------------------------|
+     |                                                    |
+
+   Example message flow for unsolicited response (new message):
+
+   Client                                              Server
+     |                                                    |
+     |                       Message.Read.Response (Ok)   |
+     |<---------------------------------------------------|
+     |                                                    |
+
+7.2.  Error Handling
+
+   When an error occurs, the receiver MUST respond with an appropriate
+   Status code from Section 4.3.
+
+   Sender Errors (0x40-0x7F):
+      The error was caused by the sender.  The receiver MUST use the
+      most specific applicable error code:
+
+      -  InvalidVersion (0x40): Unsupported protocol version
+      -  InvalidType (0x41): Invalid Resource/Action combination
+      -  InvalidSize (0x42): Size field doesn't match body
+      -  MalformedRequest (0x43): Cannot parse request body
+      -  InvalidCredentials (0x44): Auth validation failed
+      -  NotFound (0x45): Requested resource doesn't exist
+      -  AlreadyExists (0x46): Resource already exists
+      -  NotRegistered (0x47): Precondition not met
+      -  Forbidden (0x48): Insufficient permissions
+      -  NotChannelMember (0x49): User not a channel member
+
+   Receiver Errors (0x80-0xBF):
+      The error was caused by the receiver.  The receiver SHOULD use
+      the most specific applicable error code:
+
+      -  InternalError (0x80): Unexpected receiver failure
+      -  ServiceUnavailable (0x81): Temporarily unable to process
+      -  ResourceExhausted (0x82): Out of memory, connections, etc.
+      -  MessageTooLarge (0x83): Message exceeds size limit
+      -  Timeout (0x84): Operation timed out
+
+   When Status is not Ok, the response body MAY be empty.
+   Implementations MAY include error details in the body using an
+   implementation-defined format.
+
+   Upon receiving a Sender error response, senders SHOULD NOT retry
+   the request without modification.  Upon receiving a Receiver error
+   response, senders MAY retry the request after a delay.
+
+8.  Security Considerations
+
+   The BIG protocol as specified has several security limitations and
+   this version MUST NOT be used in production environments.
+
+8.1.  Authentication
+
+   The protocol requires Auth credentials on most operations.
+   Implementations MUST:
+      -  Validate credentials on every authenticated request
+
+9.  References
+
+9.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+9.2.  Informative References
+
+   [RFC793]   Postel, J., "Transmission Control Protocol", STD 7,
+              RFC 793, DOI 10.17487/RFC0793, September 1981,
+              <https://www.rfc-editor.org/info/rfc793>.
+
+Appendix A.  Type Byte Quick Reference
+
+   The following table provides a quick reference for all valid Type
+   byte values:
+
+   +------+----------+-----------------+--------+-----------+
+   | Hex  | Binary   | Resource        | Action | Direction |
+   +------+----------+-----------------+--------+-----------+
+   | 0x00 | 00000000 | Server          | Create | Request   |
+   | 0x01 | 00000001 | Server          | Create | Response  |
+   | 0x04 | 00000100 | Server          | Update | Request   |
+   | 0x05 | 00000101 | Server          | Update | Response  |
+   +------+----------+-----------------+--------+-----------+
+   | 0x08 | 00001000 | ActivatedServer | Create | Request   |
+   | 0x09 | 00001001 | ActivatedServer | Create | Response  |
+   | 0x0A | 00001010 | ActivatedServer | Read   | Request   |
+   | 0x0B | 00001011 | ActivatedServer | Read   | Response  |
+   | 0x0E | 00001110 | ActivatedServer | Delete | Request   |
+   | 0x0F | 00001111 | ActivatedServer | Delete | Response  |
+   +------+----------+-----------------+--------+-----------+
+   | 0x10 | 00010000 | User            | Create | Request   |
+   | 0x11 | 00010001 | User            | Create | Response  |
+   | 0x12 | 00010010 | User            | Read   | Request   |
+   | 0x13 | 00010011 | User            | Read   | Response  |
+   | 0x14 | 00010100 | User            | Update | Request   |
+   | 0x15 | 00010101 | User            | Update | Response  |
+   +------+----------+-----------------+--------+-----------+
+   | 0x18 | 00011000 | Log             | Create | Request   |
+   | 0x19 | 00011001 | Log             | Create | Response  |
+   +------+----------+-----------------+--------+-----------+
+   | 0x22 | 00100010 | Channel         | Read   | Request   |
+   | 0x23 | 00100011 | Channel         | Read   | Response  |
+   +------+----------+-----------------+--------+-----------+
+   | 0x2A | 00101010 | Channels        | Read   | Request   |
+   | 0x2B | 00101011 | Channels        | Read   | Response  |
+   +------+----------+-----------------+--------+-----------+
+   | 0x30 | 00110000 | Message         | Create | Request   |
+   | 0x31 | 00110001 | Message         | Create | Response  |
+   | 0x32 | 00110010 | Message         | Read   | Request   |
+   | 0x33 | 00110011 | Message         | Read   | Response  |
+   +------+----------+-----------------+--------+-----------+
+
+   With explanation:
+
+   +------+----------+--------------------------------+
+   | Hex  | Binary   | Explanation                    |
+   +------+----------+--------------------------------+
+   | 0x00 | 00000000 | Server Registration Request    |
+   | 0x01 | 00000001 | Server Registration Response   |
+   | 0x04 | 00000100 | Server Health Check Request    |
+   | 0x05 | 00000101 | Server Health Check Response   |
+   +------+----------+--------------------------------+
+   | 0x08 | 00001000 | Server Activation Request      |
+   | 0x09 | 00001001 | Server Activation Response     |
+   | 0x0A | 00001010 | Get Activated Server Request   |
+   | 0x0B | 00001011 | Get Activated Server Response  |
+   | 0x0E | 00001110 | Server Deactivation Request    |
+   | 0x0F | 00001111 | Server Deactivation Response   |
+   +------+----------+--------------------------------+
+   | 0x10 | 00010000 | User Registration Request      |
+   | 0x11 | 00010001 | User Registration Response     |
+   | 0x12 | 00010010 | Get User Info Request          |
+   | 0x13 | 00010011 | Get User Info Response         |
+   | 0x14 | 00010100 | Login or Logout Request        |
+   | 0x15 | 00010101 | Login or Logout Response       |
+   +------+----------+--------------------------------+
+   | 0x18 | 00011000 | Log Request                    |
+   | 0x19 | 00011001 | Log Response                   |
+   +------+----------+--------------------------------+
+   | 0x22 | 00100010 | Get Channel Info Request       |
+   | 0x23 | 00100011 | Get Channel Info Response      |
+   +------+----------+--------------------------------+
+   | 0x2A | 00101010 | List All Channels Request      |
+   | 0x2B | 00101011 | List All Channels Response     |
+   +------+----------+--------------------------------+
+   | 0x30 | 00110000 | Send Message Request           |
+   | 0x31 | 00110001 | Send Message Response          |
+   | 0x32 | 00110010 | Get Message Request            |
+   | 0x33 | 00110011 | Get Message Response           |
+   +------+----------+--------------------------------+
+
+Appendix B.  Status Code Quick Reference
+
+   The following table provides a quick reference for all Status codes:
+
+   +------+----------+--------------------+-------------------------+
+   | Code | Binary   | Name               | Description             |
+   +------+----------+--------------------+-------------------------+
+   | 0x00 | 00000000 | Ok                 | Success                 |
+   +------+----------+--------------------+-------------------------+
+   | 0x40 | 01000000 | InvalidVersion     | Version not supported   |
+   | 0x41 | 01000001 | InvalidType        | Bad Resource/Action     |
+   | 0x42 | 01000010 | InvalidSize        | Size field mismatch     |
+   | 0x43 | 01000011 | MalformedRequest   | Cannot parse body       |
+   | 0x44 | 01000100 | InvalidCredentials | Auth validation failed  |
+   | 0x45 | 01000101 | NotFound           | Resource doesn't exist  |
+   | 0x46 | 01000110 | AlreadyExists      | Resource already exists |
+   | 0x47 | 01000111 | NotRegistered      | Precondition not met    |
+   | 0x48 | 01001000 | Forbidden          | Permission denied       |
+   | 0x49 | 01001001 | NotChannelMember   | User not in channel     |
+   +------+----------+--------------------+-------------------------+
+   | 0x80 | 10000000 | InternalError      | Unexpected error        |
+   | 0x81 | 10000001 | ServiceUnavailable | Temporarily unavailable |
+   | 0x82 | 10000010 | ResourceExhausted  | Out of resources        |
+   | 0x83 | 10000011 | MessageTooLarge    | Exceeds size limit      |
+   | 0x84 | 10000100 | Timeout            | Operation timed out     |
+   +------+----------+--------------------+-------------------------+
+
+   Category detection using bitmask:
+
+      -  Success:        (status & 0xC0) == 0x00
+      -  Sender Error:   (status & 0xC0) == 0x40
+      -  Receiver Error: (status & 0xC0) == 0x80
+
+Appendix C.  Complete Message Size Reference
+
+   The following table lists the complete message sizes (header + body):
+
+   +------------------------+--------+----------+---------------------+
+   | Message Type           | Header | Body min | Body max            |
+   +------------------------+--------+----------+---------------------+
+   | Server Create          | 8      | 5        | 5                   |
+   | Server Update          | 8      | 5        | 5                   |
+   | ActivatedServer Create | 8      | 5        | 5                   |
+   | ActivatedServer Read   | 8      | 5        | 5                   |
+   | ActivatedServer Delete | 8      | 5        | 5                   |
+   | User Create            | 8      | 33       | 33                  |
+   | User Read              | 8      | 49       | 49                  |
+   | User Update            | 8      | 37       | 37                  |
+   | Log Create             | 8      | 4        | 4 + 65535 = 65539   |
+   | Channel Read           | 8      | 50       | 50 + 255 = 305      |
+   | Channels Read          | 8      | 33       | 33 + 255 = 288      |
+   | Message Create         | 8      | 43       | 43 + 65535 = 65578  |
+   | Message Read           | 8      | 44       | 44 + 65535 = 65579  |
+   +------------------------+--------+----------+---------------------+
+
+   Note: All sizes are in bytes.  Variable-length messages show maximum
+   body size as: fixed fields + max variable content = total.

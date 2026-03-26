@@ -1,6 +1,6 @@
-//
-// Created by Adnan Abdulle on 2026-02-11.
-//
+/*
+ * Created by Adnan Abdulle on 2026-02-11.
+ */
 
 #include "client.h"
 #include "network.h"
@@ -14,9 +14,9 @@
 #include <time.h>
 #include <unistd.h>
 
-// Sends an account creation request to the server
-void account_creation(int server_fd, char *username, char *password) {
-
+/* sends an account creation request to the server */
+void account_creation(int server_fd, const char *username,
+                      const char *password) {
   uint8_t buffer[HEADER_SIZE + ACCOUNT_REGISTRATION_BODY_SIZE];
   struct protocol_header header;
   struct account_registration account_reg;
@@ -24,6 +24,7 @@ void account_creation(int server_fd, char *username, char *password) {
   header.version = PROTOCOL_VERSION;
   header.type = MESSAGE_TYPE_ACCOUNT_REGISTRATION_REQUEST;
   header.status = STATUS_OK;
+  header.reserved = 0;
   header.body_size = ACCOUNT_REGISTRATION_BODY_SIZE;
   serialize_header(&header, buffer);
 
@@ -44,10 +45,12 @@ void account_creation(int server_fd, char *username, char *password) {
   write_exact(server_fd, buffer, HEADER_SIZE + ACCOUNT_REGISTRATION_BODY_SIZE);
 }
 
-// Receives the account creation response from the server
+/* receives the account creation response from the server */
 uint8_t account_creation_resp(int server_fd) {
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
+  uint8_t body_buffer[ACCOUNT_REGISTRATION_BODY_SIZE];
+  struct account_registration reg_resp;
 
   read_exact(server_fd, header_buffer, HEADER_SIZE);
   deserialize_header(header_buffer, &header);
@@ -62,22 +65,20 @@ uint8_t account_creation_resp(int server_fd) {
     return 0;
   }
 
-  uint8_t buffer[ACCOUNT_REGISTRATION_BODY_SIZE];
-  struct account_registration login_logout_resp;
+  memset(&reg_resp, 0, sizeof(reg_resp));
+  read_exact(server_fd, body_buffer, ACCOUNT_REGISTRATION_BODY_SIZE);
+  deserialize_account_registration(body_buffer, &reg_resp);
 
-  read_exact(server_fd, buffer, ACCOUNT_REGISTRATION_BODY_SIZE);
-  deserialize_account_registration(buffer, &login_logout_resp);
-
-  if (login_logout_resp.account_id == 0) {
+  if (reg_resp.account_id == 0) {
     syslog(LOG_ERR, "Account registration failed invalid ID");
     return 0;
   }
 
-  return login_logout_resp.account_id;
+  return reg_resp.account_id;
 }
 
-// Sends the login request to the server
-void login(int server_fd, char *password, char *username) {
+/* sends the login request to the server */
+void login(int server_fd, const char *password, const char *username) {
   uint8_t buffer[HEADER_SIZE + LOGIN_OR_LOGOUT_BODY_SIZE];
   struct protocol_header header;
   struct login_or_logout login_req;
@@ -110,10 +111,13 @@ void login(int server_fd, char *password, char *username) {
   write_exact(server_fd, buffer, HEADER_SIZE + LOGIN_OR_LOGOUT_BODY_SIZE);
 }
 
-// Receives the login or logout response from the server
+/* receives the login or logout response from the server */
 uint8_t login_logout_response(int server_fd) {
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
+  uint8_t body_buffer[LOGIN_OR_LOGOUT_BODY_SIZE];
+  struct login_or_logout login_logout_resp;
+
   read_exact(server_fd, header_buffer, HEADER_SIZE);
   deserialize_header(header_buffer, &header);
 
@@ -126,17 +130,15 @@ uint8_t login_logout_response(int server_fd) {
     return 0;
   }
 
-  uint8_t buffer[LOGIN_OR_LOGOUT_BODY_SIZE];
-  struct login_or_logout login_logout_resp;
-
-  read_exact(server_fd, buffer, LOGIN_OR_LOGOUT_BODY_SIZE);
-  deserialize_login_or_logout(buffer, &login_logout_resp);
+  memset(&login_logout_resp, 0, sizeof(login_logout_resp));
+  read_exact(server_fd, body_buffer, LOGIN_OR_LOGOUT_BODY_SIZE);
+  deserialize_login_or_logout(body_buffer, &login_logout_resp);
 
   return 1;
 }
 
-// send the logout response to the server
-void logout(int server_fd, char *password, char *username) {
+/* send the logout request to the server */
+void logout(int server_fd, const char *password, const char *username) {
   uint8_t buffer[HEADER_SIZE + LOGIN_OR_LOGOUT_BODY_SIZE];
   struct protocol_header header;
   struct login_or_logout logout_req;
@@ -170,11 +172,12 @@ void logout(int server_fd, char *password, char *username) {
   write_exact(server_fd, buffer, HEADER_SIZE + LOGIN_OR_LOGOUT_BODY_SIZE);
 }
 
-void channel_list_request(int server_fd, char *username, char *password) {
-
+/* request the list of channels from the server */
+void channel_list_request(int server_fd, const char *username,
+                          const char *password) {
   uint8_t buffer[HEADER_SIZE + CHANNEL_LIST_REQUEST_BODY_SIZE];
   struct protocol_header header;
-  struct channel_list_request channelListRequest;
+  struct channel_list_request channel_list_req;
 
   header.version = PROTOCOL_VERSION;
   header.type = MESSAGE_TYPE_CHANNEL_LIST_READ_REQUEST;
@@ -183,23 +186,23 @@ void channel_list_request(int server_fd, char *username, char *password) {
   header.body_size = CHANNEL_LIST_REQUEST_BODY_SIZE;
   serialize_header(&header, buffer);
 
-  memset(&channelListRequest, 0, sizeof(channelListRequest));
+  memset(&channel_list_req, 0, sizeof(channel_list_req));
   if (strlen(password) >= PASSWORD_SIZE) {
     return;
   }
   if (strlen(username) >= USERNAME_SIZE) {
     return;
   }
-  memcpy(channelListRequest.auth.username, username, strlen(username));
-  memcpy(channelListRequest.auth.password, password, strlen(password));
+  memcpy(channel_list_req.auth.username, username, strlen(username));
+  memcpy(channel_list_req.auth.password, password, strlen(password));
 
-  serialize_channel_list_request(&channelListRequest, buffer + HEADER_SIZE);
+  serialize_channel_list_request(&channel_list_req, buffer + HEADER_SIZE);
   write_exact(server_fd, buffer, HEADER_SIZE + CHANNEL_LIST_REQUEST_BODY_SIZE);
 }
 
+/* read the channel list response from the server */
 int channel_list_response(int server_fd,
                           struct channel_list_response *response) {
-
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
   uint8_t body_buffer[CHANNEL_RESPONSE_MAX_BODY_SIZE];
@@ -220,19 +223,29 @@ int channel_list_response(int server_fd,
     return -1;
   }
 
+  if (header.body_size < AUTH_SIZE + 1) {
+    return -1;
+  }
+
   read_exact(server_fd, body_buffer, header.body_size);
 
+  memset(response, 0, sizeof(*response));
   deserialize_channel_list_response(body_buffer, response);
+
+  if (response->channel_id_len > header.body_size - AUTH_SIZE - 1) {
+    response->channel_id_len = 0;
+    return -1;
+  }
 
   return 0;
 }
 
-void channel_read_request(int server_fd, char *username, char *password,
-                          uint8_t channel_id) {
-
+/* request channel details from the server */
+void channel_read_request(int server_fd, const char *username,
+                          const char *password, uint8_t channel_id) {
   uint8_t buffer[HEADER_SIZE + CHANNEL_READ_REQUEST_BODY_SIZE];
   struct protocol_header header;
-  struct channel_read_request channelReadRequest;
+  struct channel_read_request channel_read_req;
 
   header.version = PROTOCOL_VERSION;
   header.type = MESSAGE_TYPE_CHANNEL_READ_REQUEST;
@@ -241,24 +254,24 @@ void channel_read_request(int server_fd, char *username, char *password,
   header.body_size = CHANNEL_READ_REQUEST_BODY_SIZE;
   serialize_header(&header, buffer);
 
-  memset(&channelReadRequest, 0, sizeof(channelReadRequest));
+  memset(&channel_read_req, 0, sizeof(channel_read_req));
   if (strlen(password) >= PASSWORD_SIZE) {
     return;
   }
   if (strlen(username) >= USERNAME_SIZE) {
     return;
   }
-  memcpy(channelReadRequest.auth.username, username, strlen(username));
-  memcpy(channelReadRequest.auth.password, password, strlen(password));
-  channelReadRequest.channel_id = channel_id;
+  memcpy(channel_read_req.auth.username, username, strlen(username));
+  memcpy(channel_read_req.auth.password, password, strlen(password));
+  channel_read_req.channel_id = channel_id;
 
-  serialize_channel_read_request(&channelReadRequest, buffer + HEADER_SIZE);
+  serialize_channel_read_request(&channel_read_req, buffer + HEADER_SIZE);
   write_exact(server_fd, buffer, HEADER_SIZE + CHANNEL_READ_REQUEST_BODY_SIZE);
 }
 
+/* read the channel details response from the server */
 int channel_read_response(int server_fd,
                           struct channel_read_response *response) {
-
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
   uint8_t body_buffer[CHANNEL_RESPONSE_MAX_BODY_SIZE];
@@ -279,19 +292,26 @@ int channel_read_response(int server_fd,
     return -1;
   }
 
-  if (header.body_size < 50) {
+  if (header.body_size < CHANNEL_READ_REQUEST_BODY_SIZE) {
     return -1;
   }
 
   read_exact(server_fd, body_buffer, header.body_size);
 
+  memset(response, 0, sizeof(*response));
   deserialize_channel_read_response(body_buffer, response);
+
+  if (response->user_id_len >
+      header.body_size - CHANNEL_READ_REQUEST_BODY_SIZE) {
+    response->user_id_len = 0;
+    return -1;
+  }
 
   return 0;
 }
 
-// connects to any socket as long as i got ip and port numeber
-int connect_socket(const char *ip, uint16_t port) {
+/* connects to any socket as long as we got ip and port number */
+static int connect_socket(const char *ip, uint16_t port) {
   int fd;
   struct sockaddr_in addr;
 
@@ -319,24 +339,32 @@ int connect_socket(const char *ip, uint16_t port) {
   return fd;
 }
 
-void active_server_request(int server_manager) {
-  uint8_t buffer[HEADER_SIZE];
+/* ask the server manager which server is currently active */
+static void active_server_request(int server_manager) {
+  uint8_t buffer[HEADER_SIZE + SERVER_ACTIVATION_BODY_SIZE];
   struct protocol_header header;
 
   header.version = PROTOCOL_VERSION;
   header.type = MESSAGE_TYPE_GET_ACTIVATED_SERVER_REQUEST;
   header.status = STATUS_OK;
-  header.body_size = 0;
+  header.reserved = 0;
+  header.body_size = SERVER_ACTIVATION_BODY_SIZE;
   serialize_header(&header, buffer);
 
-  write_exact(server_manager, buffer, HEADER_SIZE);
+  memset(buffer + HEADER_SIZE, 0, SERVER_ACTIVATION_BODY_SIZE);
+
+  write_exact(server_manager, buffer,
+              HEADER_SIZE + SERVER_ACTIVATION_BODY_SIZE);
 }
 
-// Receives the server IP from the server manager
-char *active_server_rsp(int server_manager) {
-
+/* receives the server IP from the server manager */
+static char *active_server_rsp(int server_manager) {
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
+  uint8_t body_buffer[SERVER_ACTIVATION_BODY_SIZE];
+  struct server_registration server_reg;
+  size_t ip_size;
+  char *server_ip;
 
   read_exact(server_manager, header_buffer, HEADER_SIZE);
   deserialize_header(header_buffer, &header);
@@ -345,18 +373,17 @@ char *active_server_rsp(int server_manager) {
     syslog(LOG_ERR, "Manager error");
     return NULL;
   }
-  if (header.body_size != SERVER_REGISTRATION_BODY_SIZE) {
+  if (header.body_size != SERVER_ACTIVATION_BODY_SIZE) {
     syslog(LOG_ERR, "Server registration body size error");
     return NULL;
   }
 
-  uint8_t body_buffer[SERVER_REGISTRATION_BODY_SIZE];
-  struct server_registration server_reg;
-  read_exact(server_manager, body_buffer, SERVER_REGISTRATION_BODY_SIZE);
+  memset(&server_reg, 0, sizeof(server_reg));
+  read_exact(server_manager, body_buffer, SERVER_ACTIVATION_BODY_SIZE);
   deserialize_server_registration(body_buffer, &server_reg);
 
-  size_t ip_size = 16;
-  char *server_ip = malloc(ip_size);
+  ip_size = IP_STRING_SIZE;
+  server_ip = malloc(ip_size);
   if (server_ip != NULL) {
     snprintf(server_ip, ip_size, "%u.%u.%u.%u", server_reg.ip.a,
              server_reg.ip.b, server_reg.ip.c, server_reg.ip.d);
@@ -365,29 +392,45 @@ char *active_server_rsp(int server_manager) {
   return server_ip;
 }
 
-void message_create_request(int server, char *username, char *password,
-                            uint8_t channel_id, const char *message) {
-  uint16_t message_len = strlen(message);
-
+/* send a message to a channel */
+void message_create_request(int server, const char *username,
+                            const char *password, uint8_t channel_id,
+                            const char *message) {
+  size_t raw_len;
+  uint16_t message_len;
   uint8_t buffer[HEADER_SIZE + MIN_MESSAGE_CREATE_BODY_SIZE + MAX_MESSAGE_SIZE];
-
   struct protocol_header header;
   struct message_create_request request;
+  time_t now;
+
+  raw_len = strlen(message);
+  if (raw_len > MAX_MESSAGE_SIZE) {
+    raw_len = MAX_MESSAGE_SIZE;
+  }
+  message_len = (uint16_t)raw_len;
 
   header.version = PROTOCOL_VERSION;
   header.type = MESSAGE_TYPE_MESSAGE_CREATE_REQUEST;
   header.status = STATUS_OK;
   header.reserved = 0;
-  header.body_size = MIN_MESSAGE_CREATE_BODY_SIZE + message_len;
+  header.body_size = (uint32_t)(MIN_MESSAGE_CREATE_BODY_SIZE + message_len);
 
   serialize_header(&header, buffer);
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
 
   memset(&request, 0, sizeof(request));
 
   memcpy(request.auth.username, username, strlen(username));
   memcpy(request.auth.password, password, strlen(password));
 
-  request.timestamp = time(NULL);
+  now = time(NULL);
+  request.timestamp = (uint64_t)now;
   request.message_len = message_len;
   request.channel_id = channel_id;
 
@@ -398,8 +441,8 @@ void message_create_request(int server, char *username, char *password,
   write_exact(server, buffer, HEADER_SIZE + header.body_size);
 }
 
+/* read the message create response from the server */
 int message_create_response(int server) {
-
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
 
@@ -426,11 +469,12 @@ int message_create_response(int server) {
 
   return 0;
 }
-void message_read_request(int server, char *username, char *password,
-                          uint64_t timestamp) {
 
+/* request messages from a channel, starting at a given timestamp */
+void message_read_request(int server, const char *username,
+                          const char *password, uint64_t timestamp,
+                          uint8_t channel_id) {
   uint8_t buffer[HEADER_SIZE + MESSAGE_READ_REQUEST_BODY_SIZE];
-
   struct protocol_header header;
   struct message_read_request request;
 
@@ -442,23 +486,30 @@ void message_read_request(int server, char *username, char *password,
 
   serialize_header(&header, buffer);
 
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+
   memset(&request, 0, sizeof(request));
 
   memcpy(request.auth.username, username, strlen(username));
   memcpy(request.auth.password, password, strlen(password));
 
   request.timestamp = timestamp;
+  request.channel_id = channel_id;
 
   serialize_message_read_request(&request, buffer + HEADER_SIZE);
 
   write_exact(server, buffer, HEADER_SIZE + MESSAGE_READ_REQUEST_BODY_SIZE);
 }
 
+/* read a message read response from the server */
 int message_read_response(int server, struct message_read_response *response) {
-
   uint8_t header_buffer[HEADER_SIZE];
   struct protocol_header header;
-
   uint8_t body_buffer[MIN_MESSAGE_READ_RESPONSE_BODY_SIZE + MAX_MESSAGE_SIZE];
 
   read_exact(server, header_buffer, HEADER_SIZE);
@@ -479,28 +530,34 @@ int message_read_response(int server, struct message_read_response *response) {
 
   read_exact(server, body_buffer, header.body_size);
 
+  memset(response, 0, sizeof(*response));
   deserialize_message_read_response(body_buffer, response);
 
   return 0;
 }
-// connects the client to the server manager, gets the server ip, and then
-// connects to the server. Returns the server file descriptor
+
+/* connects the client to the server manager, gets the server ip, and then
+ * connects to the server */
 int connect_server_manager(const char *ip, uint16_t port) {
-  int server_manager = connect_socket(ip, port);
+  int server_manager;
+  char *server_ip;
+  int server;
+
+  server_manager = connect_socket(ip, port);
   if (server_manager == -1) {
     syslog(LOG_ERR, "connect_socket failed");
     return -1;
   }
 
   active_server_request(server_manager);
-  char *server_ip = active_server_rsp(server_manager);
+  server_ip = active_server_rsp(server_manager);
   if (server_ip == NULL) {
     close(server_manager);
     return -1;
   }
 
   close(server_manager);
-  int server = connect_socket(server_ip, port);
+  server = connect_socket(server_ip, port);
   if (server == -1) {
     syslog(LOG_ERR, "connect_socket failed");
     free(server_ip);

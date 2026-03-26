@@ -1,1 +1,1 @@
-main src/main.c src/protocol.c src/network.c src/manager.c src/client_handler.c src/client_account.c src/server.c
+main src/main.c src/protocol.c src/network.c src/client.c src/ncurses_ui.c src/ncurses_pages.c src/ncurses_channel.c src/ncurses_input.c src/recv_buffer.c ncurses
