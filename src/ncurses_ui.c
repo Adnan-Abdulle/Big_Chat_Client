@@ -33,6 +33,7 @@ enum { MENU_CONTINUE = 0, MENU_QUIT = 1 };
 static int menu_ui(int server);
 static void create_account_ui(int server);
 static void login_ui(int server);
+static void delete_account_ui(int server);
 
 /* connect to the server manager and launch the main menu loop */
 void run_ui(const char *ip, uint16_t port) {
@@ -76,7 +77,8 @@ static int menu_ui(int server) {
   mvprintw(0, UI_TITLE_COL, "BIG CHAT");
   mvprintw(UI_MENU_ROW_1, UI_TITLE_COL, "1.Create account");
   mvprintw(UI_MENU_ROW_2, UI_TITLE_COL, "2.Login");
-  mvprintw(UI_MENU_ROW_3, UI_TITLE_COL, "q.Quit");
+  mvprintw(UI_MENU_ROW_3, UI_TITLE_COL, "3.Delete account");
+  mvprintw(UI_MENU_ROW_3 + 1, UI_TITLE_COL, "q.Quit");
 
   refresh();
 
@@ -88,6 +90,10 @@ static int menu_ui(int server) {
 
   if (choice == '2') {
     login_ui(server);
+  }
+
+  if (choice == '3') {
+    delete_account_ui(server);
   }
 
   if (choice == 'q') {
@@ -217,6 +223,67 @@ static void login_ui(int server) {
   }
 
   mvprintw(UI_STATUS_ROW, UI_LABEL_COL, "Login failed");
+  refresh();
+  getch();
+
+  delwin(userwin);
+  delwin(passwin);
+}
+
+/* prompt for username and password then delete the account */
+static void delete_account_ui(int server) {
+  const char *title = "BIG CHAT DELETE ACCOUNT";
+  WINDOW *userwin;
+  WINDOW *passwin;
+  char username[USERNAME_SIZE];
+  char password[PASSWORD_SIZE];
+  int result;
+
+  clear();
+  refresh();
+
+  attron(A_BOLD);
+  mvprintw(0, UI_TITLE_COL, "%s", title);
+  attroff(A_BOLD);
+
+  mvprintw(UI_FIELD_ROW_USER, UI_LABEL_COL, "Username: ");
+  mvprintw(UI_FIELD_ROW_PASS, UI_LABEL_COL, "Password: ");
+
+  refresh();
+
+  userwin = newwin(UI_BOX_HEIGHT, UI_INPUT_BOX_WIDTH, UI_USERWIN_ROW,
+                   UI_INPUT_BOX_COL);
+  box(userwin, 0, 0);
+  wrefresh(userwin);
+
+  passwin = newwin(UI_BOX_HEIGHT, UI_INPUT_BOX_WIDTH, UI_PASSWIN_ROW,
+                   UI_INPUT_BOX_COL);
+  box(passwin, 0, 0);
+  wrefresh(passwin);
+
+  wmove(userwin, 1, 1);
+
+  echo();
+  wgetnstr(userwin, username, USERNAME_SIZE - 1);
+  noecho();
+
+  wmove(passwin, 1, 1);
+
+  echo();
+  wgetnstr(passwin, password, PASSWORD_SIZE - 1);
+  noecho();
+
+  wrefresh(passwin);
+
+  delete_user_request(server, username, password);
+  result = delete_user_response(server);
+
+  if (result == 0) {
+    mvprintw(UI_STATUS_ROW, UI_LABEL_COL, "Account deleted successfully.");
+  } else {
+    mvprintw(UI_STATUS_ROW, UI_LABEL_COL, "Account deletion failed.");
+  }
+
   refresh();
   getch();
 
