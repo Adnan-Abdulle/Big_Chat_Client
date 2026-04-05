@@ -217,39 +217,3 @@ void deserialize_server_registration(const uint8_t *buffer,
   deserialize_ipv4(buffer, &message->ip);
   message->server_id = buffer[IPV4_SIZE];
 }
-
-/* return the expected body size for a given message type */
-uint32_t get_body_size_for_type(uint8_t message_type) {
-
-  if (message_type == MESSAGE_TYPE_SERVER_REGISTRATION_REQUEST ||
-      message_type == MESSAGE_TYPE_SERVER_REGISTRATION_RESPONSE ||
-      message_type == MESSAGE_TYPE_SERVER_HEALTH_CHECK_REQUEST ||
-      message_type == MESSAGE_TYPE_SERVER_HEALTH_CHECK_RESPONSE) {
-    return SERVER_REGISTRATION_BODY_SIZE;
-  }
-
-  if (message_type == MESSAGE_TYPE_SERVER_ACTIVATION_REQUEST ||
-      message_type == MESSAGE_TYPE_SERVER_ACTIVATION_RESPONSE ||
-      message_type == MESSAGE_TYPE_GET_ACTIVATED_SERVER_REQUEST ||
-      message_type == MESSAGE_TYPE_GET_ACTIVATED_SERVER_RESPONSE ||
-      message_type == MESSAGE_TYPE_SERVER_DEACTIVATION_REQUEST ||
-      message_type == MESSAGE_TYPE_SERVER_DEACTIVATION_RESPONSE) {
-    return SERVER_ACTIVATION_BODY_SIZE;
-  }
-
-  if (message_type == MESSAGE_TYPE_ACCOUNT_REGISTRATION_REQUEST ||
-      message_type == MESSAGE_TYPE_ACCOUNT_REGISTRATION_RESPONSE) {
-    return ACCOUNT_REGISTRATION_BODY_SIZE;
-  }
-
-  if (message_type == MESSAGE_TYPE_LOGIN_OR_LOGOUT_REQUEST ||
-      message_type == MESSAGE_TYPE_LOGIN_OR_LOGOUT_RESPONSE) {
-    return LOGIN_OR_LOGOUT_BODY_SIZE;
-  }
-
-  if (message_type == MESSAGE_TYPE_CHANNEL_LIST_READ_REQUEST) {
-    return CHANNEL_LIST_REQUEST_BODY_SIZE;
-  }
-
-  return 0;
-}

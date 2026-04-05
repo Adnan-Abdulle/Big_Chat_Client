@@ -24,7 +24,7 @@ static inline uint64_t big_net_to_host_64(uint64_t net) {
   return ((uint64_t)ntohl(high) << 32) | ntohl(low);
 }
 
-enum { PROTOCOL_VERSION = 0x02 };
+enum { PROTOCOL_VERSION = 0x03 };
 
 enum { HEADER_SIZE = 8 };
 enum { USERNAME_SIZE = 16, PASSWORD_SIZE = 16, CHANNEL_NAME_SIZE = 16 };
@@ -47,6 +47,7 @@ enum {
   CHANNEL_RESPONSE_MAX_BODY_SIZE = CHANNEL_READ_REQUEST_BODY_SIZE + MAX_IDS
 };
 enum { MAX_MESSAGE_SIZE = 2048 };
+enum { MAX_HISTORY_RESULTS = 50 };
 enum {
   MIN_MESSAGE_CREATE_BODY_SIZE =
       AUTH_SIZE + TIMESTAMP_SIZE + MESSAGE_LEN_FIELD_SIZE + 1
@@ -58,6 +59,16 @@ enum {
 enum {
   MESSAGE_READ_REQUEST_BODY_SIZE =
       AUTH_SIZE + TIMESTAMP_SIZE + MESSAGE_LEN_FIELD_SIZE + 1 + 1
+};
+enum { DELETE_USER_BODY_SIZE = AUTH_SIZE };
+enum { DELETE_MESSAGE_BODY_SIZE = AUTH_SIZE + TIMESTAMP_SIZE + 1 };
+enum {
+  GET_HISTORY_FIXED_BODY_SIZE = AUTH_SIZE + TIMESTAMP_SIZE + 2 + 2 + 1 + 3
+};
+enum {
+  GET_HISTORY_MAX_BODY_SIZE =
+      GET_HISTORY_FIXED_BODY_SIZE +
+      MAX_HISTORY_RESULTS * (TIMESTAMP_SIZE + 1)
 };
 
 enum {
@@ -75,6 +86,8 @@ enum {
   MESSAGE_TYPE_ACCOUNT_REGISTRATION_RESPONSE = 0x11,
   MESSAGE_TYPE_LOGIN_OR_LOGOUT_REQUEST = 0x14,
   MESSAGE_TYPE_LOGIN_OR_LOGOUT_RESPONSE = 0x15,
+  MESSAGE_TYPE_DELETE_USER_REQUEST = 0x16,
+  MESSAGE_TYPE_DELETE_USER_RESPONSE = 0x17,
   MESSAGE_TYPE_LOG_REQUEST = 0x18,
   MESSAGE_TYPE_LOG_RESPONSE = 0x19,
 
@@ -85,7 +98,13 @@ enum {
   MESSAGE_TYPE_MESSAGE_CREATE_REQUEST = 0x30,
   MESSAGE_TYPE_MESSAGE_CREATE_RESPONSE = 0x31,
   MESSAGE_TYPE_MESSAGE_READ_REQUEST = 0x32,
-  MESSAGE_TYPE_MESSAGE_READ_RESPONSE = 0x33
+  MESSAGE_TYPE_MESSAGE_READ_RESPONSE = 0x33,
+  MESSAGE_TYPE_EDIT_MESSAGE_REQUEST = 0x34,
+  MESSAGE_TYPE_EDIT_MESSAGE_RESPONSE = 0x35,
+  MESSAGE_TYPE_DELETE_MESSAGE_REQUEST = 0x36,
+  MESSAGE_TYPE_DELETE_MESSAGE_RESPONSE = 0x37,
+  MESSAGE_TYPE_GET_HISTORY_REQUEST = 0x3A,
+  MESSAGE_TYPE_GET_HISTORY_RESPONSE = 0x3B
 
 };
 
@@ -208,6 +227,30 @@ struct message_read_response {
   char message[MAX_MESSAGE_SIZE];
 };
 
+struct delete_message_request {
+  struct auth auth;
+  uint64_t timestamp;
+  uint8_t channel_id;
+};
+
+struct get_history_request {
+  struct auth auth;
+  uint64_t start_timestamp;
+  uint16_t result_len_limit;
+  uint16_t result_len;
+  uint8_t channel_id;
+};
+
+struct get_history_response {
+  struct auth auth;
+  uint64_t start_timestamp;
+  uint16_t result_len_limit;
+  uint16_t result_len;
+  uint8_t channel_id;
+  uint64_t timestamps[MAX_HISTORY_RESULTS];
+  uint8_t sender_ids[MAX_HISTORY_RESULTS];
+};
+
 void serialize_header(const struct protocol_header *header, uint8_t *buffer);
 void deserialize_header(const uint8_t *buffer, struct protocol_header *header);
 
@@ -246,5 +289,14 @@ void serialize_message_read_request(const struct message_read_request *message,
 
 void deserialize_message_read_response(const uint8_t *buffer,
                                        struct message_read_response *message);
+
+void serialize_delete_message(const struct delete_message_request *message,
+                              uint8_t *buffer);
+
+void serialize_get_history_request(const struct get_history_request *message,
+                                   uint8_t *buffer);
+
+void deserialize_get_history_response(const uint8_t *buffer,
+                                      struct get_history_response *message);
 
 #endif
