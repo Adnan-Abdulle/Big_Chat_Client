@@ -395,13 +395,12 @@ static char *active_server_rsp(int server_manager) {
 /* send a message to a channel */
 void message_create_request(int server, const char *username,
                             const char *password, uint8_t channel_id,
-                            const char *message) {
+                            const char *message, uint64_t timestamp) {
   size_t raw_len;
   uint16_t message_len;
   uint8_t buffer[HEADER_SIZE + MIN_MESSAGE_CREATE_BODY_SIZE + MAX_MESSAGE_SIZE];
   struct protocol_header header;
   struct message_create_request request;
-  time_t now;
 
   raw_len = strlen(message);
   if (raw_len > MAX_MESSAGE_SIZE) {
@@ -429,8 +428,7 @@ void message_create_request(int server, const char *username,
   memcpy(request.auth.username, username, strlen(username));
   memcpy(request.auth.password, password, strlen(password));
 
-  now = time(NULL);
-  request.timestamp = (uint64_t)now;
+  request.timestamp = timestamp;
   request.message_len = message_len;
   request.channel_id = channel_id;
 
@@ -473,7 +471,7 @@ int message_create_response(int server) {
 /* request messages from a channel, starting at a given timestamp */
 void message_read_request(int server, const char *username,
                           const char *password, uint64_t timestamp,
-                          uint8_t channel_id) {
+                          uint8_t channel_id, uint8_t sender_id) {
   uint8_t buffer[HEADER_SIZE + MESSAGE_READ_REQUEST_BODY_SIZE];
   struct protocol_header header;
   struct message_read_request request;
@@ -500,6 +498,7 @@ void message_read_request(int server, const char *username,
 
   request.timestamp = timestamp;
   request.channel_id = channel_id;
+  request.sender_id = sender_id;
 
   serialize_message_read_request(&request, buffer + HEADER_SIZE);
 
@@ -532,6 +531,196 @@ int message_read_response(int server, struct message_read_response *response) {
 
   memset(response, 0, sizeof(*response));
   deserialize_message_read_response(body_buffer, response);
+
+  return 0;
+}
+
+/* send a delete user request to the server */
+void delete_user_request(int server_fd, const char *username,
+                         const char *password) {
+  uint8_t buffer[HEADER_SIZE + DELETE_USER_BODY_SIZE];
+  struct protocol_header header;
+  struct auth auth_data;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_DELETE_USER_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = DELETE_USER_BODY_SIZE;
+  serialize_header(&header, buffer);
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+
+  memset(&auth_data, 0, sizeof(auth_data));
+  memcpy(auth_data.username, username, strlen(username));
+  memcpy(auth_data.password, password, strlen(password));
+  memcpy(buffer + HEADER_SIZE, &auth_data, sizeof(auth_data));
+
+  write_exact(server_fd, buffer, HEADER_SIZE + DELETE_USER_BODY_SIZE);
+}
+
+/* receive the delete user response from the server */
+int delete_user_response(int server_fd) {
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  read_exact(server_fd, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.type != MESSAGE_TYPE_DELETE_USER_RESPONSE) {
+    return -1;
+  }
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.body_size > 0 && header.body_size <= DELETE_USER_BODY_SIZE) {
+    uint8_t body_buffer[DELETE_USER_BODY_SIZE];
+    read_exact(server_fd, body_buffer, header.body_size);
+  }
+
+  return 0;
+}
+
+/* send an edit message request to the server */
+void edit_message_request(int server, const char *username,
+                          const char *password, uint8_t channel_id,
+                          uint64_t timestamp, const char *message) {
+  size_t raw_len;
+  uint16_t message_len;
+  uint8_t buffer[HEADER_SIZE + MIN_MESSAGE_CREATE_BODY_SIZE + MAX_MESSAGE_SIZE];
+  struct protocol_header header;
+  struct message_create_request request;
+
+  raw_len = strlen(message);
+  if (raw_len > MAX_MESSAGE_SIZE) {
+    raw_len = MAX_MESSAGE_SIZE;
+  }
+  message_len = (uint16_t)raw_len;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_EDIT_MESSAGE_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = (uint32_t)(MIN_MESSAGE_CREATE_BODY_SIZE + message_len);
+  serialize_header(&header, buffer);
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+
+  memset(&request, 0, sizeof(request));
+  memcpy(request.auth.username, username, strlen(username));
+  memcpy(request.auth.password, password, strlen(password));
+  request.timestamp = timestamp;
+  request.message_len = message_len;
+  request.channel_id = channel_id;
+  memcpy(request.message, message, message_len);
+
+  serialize_message_create_request(&request, buffer + HEADER_SIZE);
+  write_exact(server, buffer, HEADER_SIZE + header.body_size);
+}
+
+/* send a delete message request to the server */
+void delete_message_request(int server, const char *username,
+                            const char *password, uint8_t channel_id,
+                            uint64_t timestamp) {
+  uint8_t buffer[HEADER_SIZE + DELETE_MESSAGE_BODY_SIZE];
+  struct protocol_header header;
+  struct delete_message_request request;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_DELETE_MESSAGE_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = DELETE_MESSAGE_BODY_SIZE;
+  serialize_header(&header, buffer);
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+
+  memset(&request, 0, sizeof(request));
+  memcpy(request.auth.username, username, strlen(username));
+  memcpy(request.auth.password, password, strlen(password));
+  request.timestamp = timestamp;
+  request.channel_id = channel_id;
+
+  serialize_delete_message(&request, buffer + HEADER_SIZE);
+  write_exact(server, buffer, HEADER_SIZE + DELETE_MESSAGE_BODY_SIZE);
+}
+
+/* send a get history request to the server */
+void get_history_request(int server, const char *username, const char *password,
+                         uint64_t start_timestamp, uint8_t channel_id,
+                         uint16_t limit) {
+  uint8_t buffer[HEADER_SIZE + GET_HISTORY_FIXED_BODY_SIZE];
+  struct protocol_header header;
+  struct get_history_request request;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_GET_HISTORY_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = GET_HISTORY_FIXED_BODY_SIZE;
+  serialize_header(&header, buffer);
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+
+  memset(&request, 0, sizeof(request));
+  memcpy(request.auth.username, username, strlen(username));
+  memcpy(request.auth.password, password, strlen(password));
+  request.start_timestamp = start_timestamp;
+  request.result_len_limit = limit;
+  request.result_len = 0;
+  request.channel_id = channel_id;
+
+  serialize_get_history_request(&request, buffer + HEADER_SIZE);
+  write_exact(server, buffer, HEADER_SIZE + GET_HISTORY_FIXED_BODY_SIZE);
+}
+
+/* receive the get history response from the server */
+int get_history_response(int server, struct get_history_response *response) {
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+  uint8_t body_buffer[GET_HISTORY_MAX_BODY_SIZE];
+
+  read_exact(server, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+  if (header.type != MESSAGE_TYPE_GET_HISTORY_RESPONSE) {
+    return -1;
+  }
+  if (header.body_size > sizeof(body_buffer)) {
+    return -1;
+  }
+  if (header.body_size < GET_HISTORY_FIXED_BODY_SIZE) {
+    return -1;
+  }
+
+  read_exact(server, body_buffer, header.body_size);
+
+  memset(response, 0, sizeof(*response));
+  deserialize_get_history_response(body_buffer, response);
 
   return 0;
 }
