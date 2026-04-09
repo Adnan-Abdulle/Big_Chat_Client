@@ -119,11 +119,12 @@ static void handle_input_navigation(int ch, int *focus,
   }
 }
 
-static void update_selected_message_text(struct channel_message_state *msg_state,
-                                         const char *input) {
-    strncpy(msg_state->messages[msg_state->index].text, input,
-            MAX_MESSAGE_SIZE - 1);
-    msg_state->messages[msg_state->index].text[MAX_MESSAGE_SIZE - 1] = '\0';
+static void
+update_selected_message_text(struct channel_message_state *msg_state,
+                             const char *input) {
+  strncpy(msg_state->messages[msg_state->index].text, input,
+          MAX_MESSAGE_SIZE - 1);
+  msg_state->messages[msg_state->index].text[MAX_MESSAGE_SIZE - 1] = '\0';
 }
 
 static void handle_input_editing(char *input, int *input_len, int server,
@@ -136,7 +137,7 @@ static void handle_input_editing(char *input, int *input_len, int server,
   if (strcmp(input, m->text) != 0) {
     edit_message_request(server, username, password, channel_id,
                          msg_state->editing_timestamp, input);
-    //    edit_message_response(server);
+    update_selected_message_text(msg_state, input);
   }
 
   msg_state->editing = 0;
