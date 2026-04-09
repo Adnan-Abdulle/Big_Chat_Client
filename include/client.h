@@ -51,14 +51,19 @@ void edit_message_request(int server, const char *username,
                           const char *password, uint8_t channel_id,
                           uint64_t timestamp, const char *message);
 
+int edit_message_response(int server);
+
 void delete_message_request(int server, const char *username,
                             const char *password, uint8_t channel_id,
                             uint64_t timestamp);
+
+int delete_message_response(int server);
 
 void get_history_request(int server, const char *username,
                          const char *password, uint64_t start_timestamp,
                          uint8_t channel_id, uint16_t limit);
 
 int get_history_response(int server, struct get_history_response *response);
+
 
 #endif /* MAIN_CLIENT_H */

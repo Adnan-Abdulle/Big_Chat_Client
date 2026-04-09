@@ -661,6 +661,60 @@ void delete_message_request(int server, const char *username,
   write_exact(server, buffer, HEADER_SIZE + DELETE_MESSAGE_BODY_SIZE);
 }
 
+int edit_message_response(int server) {
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  read_exact(server, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.type != MESSAGE_TYPE_EDIT_MESSAGE_RESPONSE) {
+    return -1;
+  }
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.body_size > MAX_MESSAGE_SIZE) {
+    return -1;
+  }
+
+  if (header.body_size > 0) {
+    uint8_t body_buffer[MAX_MESSAGE_SIZE];
+    read_exact(server, body_buffer, header.body_size);
+  }
+
+  return 0;
+}
+
+int delete_message_response(int server) {
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+
+  read_exact(server, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.type != MESSAGE_TYPE_DELETE_MESSAGE_RESPONSE) {
+    return -1;
+  }
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.body_size > DELETE_MESSAGE_BODY_SIZE) {
+    return -1;
+  }
+
+  if (header.body_size > 0) {
+    uint8_t body_buffer[DELETE_MESSAGE_BODY_SIZE];
+    read_exact(server, body_buffer, header.body_size);
+  }
+
+  return 0;
+}
+
 /* send a get history request to the server */
 void get_history_request(int server, const char *username, const char *password,
                          uint64_t start_timestamp, uint8_t channel_id,

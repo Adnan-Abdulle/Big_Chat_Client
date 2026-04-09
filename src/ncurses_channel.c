@@ -1,6 +1,7 @@
 #include "client.h"
 #include "ncurses_input.h"
 #include "ncurses_pages.h"
+#include "ncurses_render.h"
 #include "protocol.h"
 #include "recv_buffer.h"
 #include <ncurses.h>
@@ -77,6 +78,9 @@ void channel_page(int server, const char *username, const char *password,
 
   memset(&response, 0, sizeof(response));
   memset(&msg_state, 0, sizeof(msg_state));
+  msg_state.index = 0;
+  msg_state.editing = 0;
+  msg_state.editing_timestamp = 0;
 
   channel_read_request(server, username, password, channel_id);
   channel_read_response(server, &response);
@@ -92,7 +96,7 @@ void channel_page(int server, const char *username, const char *password,
   keypad(stdscr, TRUE);
   nodelay(stdscr, TRUE);
 
-  focus = 1;
+  focus = FOCUS_INPUT;
   memset(input, 0, sizeof(input));
   input_len = 0;
 

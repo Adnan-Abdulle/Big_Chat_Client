@@ -7,6 +7,8 @@
 
 struct recv_buffer;
 
+enum { FOCUS_BACK = 0, FOCUS_MESSAGES = 1, FOCUS_INPUT = 2 };
+
 enum { INPUT_ACTION_NONE = 0, INPUT_ACTION_BACK = 1 };
 
 enum { MAX_STORED_MESSAGES = 256 };
@@ -18,10 +20,13 @@ struct stored_message {
 };
 
 struct channel_message_state {
-  struct stored_message messages[MAX_STORED_MESSAGES];
-  int message_count;
-  int scroll_offset;
-  uint64_t last_sent_timestamp;
+    struct stored_message messages[MAX_STORED_MESSAGES];
+    int message_count;
+    int scroll_offset;
+    uint64_t last_sent_timestamp;
+    int index;
+    int editing;
+    uint64_t editing_timestamp;
 };
 
 /* process a keypress in the channel page, returns INPUT_ACTION_BACK to exit */
@@ -33,17 +38,6 @@ int handle_channel_input(int ch, int *focus, char *input, int *input_len,
 /* drain all complete messages from the recv buffer into the message state */
 void drain_incoming_messages(struct recv_buffer *recv_buf,
                              struct channel_message_state *msg_state);
-
-/* draw the stored messages based on current scroll position */
-void draw_messages(WINDOW *msg_win,
-                   const struct channel_message_state *msg_state);
-
-/* draw the channel header bar with back button and channel name */
-void draw_channel_header(WINDOW *header_win, int focus,
-                         const char *channel_name);
-
-/* draw the input bar with the current input text */
-void draw_channel_input_bar(WINDOW *input_win, int focus, const char *input);
 
 /* handle page up scrolling */
 void handle_scroll_up(struct channel_message_state *msg_state);
