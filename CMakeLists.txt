@@ -13,24 +13,42 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/main.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/protocol.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/protocol_v3.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/network.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/client.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_ui.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_pages.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_channel.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_input.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_scroll.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_commands.c)
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/recv_buffer.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_input_helpers.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_channel_helpers.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_render.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_popup_create.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_popup_delete.c)
+list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/src/ncurses_popup_input.c)
 
 set(main_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.c
     ${CMAKE_SOURCE_DIR}/src/protocol.c
+    ${CMAKE_SOURCE_DIR}/src/protocol_v3.c
     ${CMAKE_SOURCE_DIR}/src/network.c
     ${CMAKE_SOURCE_DIR}/src/client.c
     ${CMAKE_SOURCE_DIR}/src/ncurses_ui.c
     ${CMAKE_SOURCE_DIR}/src/ncurses_pages.c
     ${CMAKE_SOURCE_DIR}/src/ncurses_channel.c
     ${CMAKE_SOURCE_DIR}/src/ncurses_input.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_scroll.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_commands.c
     ${CMAKE_SOURCE_DIR}/src/recv_buffer.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_input_helpers.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_channel_helpers.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_render.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_popup_create.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_popup_delete.c
+    ${CMAKE_SOURCE_DIR}/src/ncurses_popup_input.c
 )
 
 set(main_HEADERS
