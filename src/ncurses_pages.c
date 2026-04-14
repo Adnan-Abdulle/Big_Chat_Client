@@ -1,10 +1,8 @@
 #include "ncurses_pages.h"
 #include "client.h"
-#include "ncurses_popup.h"
 #include "protocol.h"
 #include <ncurses.h>
 #include <string.h>
-#include <sys/syslog.h>
 
 /* layout constants for the main page */
 enum {
@@ -26,8 +24,6 @@ void main_page(int server, const char *username, const char *password) {
 
   while (1) {
     int ch;
-    int total_items;
-
     clear();
 
     mvprintw(UI_FIELD_ROW_USER, UI_INDENT_COL, "Logged in!");
@@ -44,10 +40,9 @@ void main_page(int server, const char *username, const char *password) {
       return;
     }
 
-    total_items = response.channel_id_len + 1;
-
-    if (selected >= total_items) {
-      selected = total_items - 1;
+    // 🔥 FIX 1: safe clamp (handles 0 channels)
+    if (selected >= response.channel_id_len) {
+      selected = response.channel_id_len > 0 ? response.channel_id_len - 1 : 0;
     }
 
     if (response.channel_id_len == 0) {
@@ -74,16 +69,16 @@ void main_page(int server, const char *username, const char *password) {
       }
     }
 
-    if (selected == response.channel_id_len) {
-      attron(A_REVERSE);
-    }
+    //    if (selected == response.channel_id_len) {
+    //      attron(A_REVERSE);
+    //    }
 
-    mvprintw(UI_CHAN_START_ROW + response.channel_id_len, UI_INDENT_COL,
-             "+ New Channel");
+    //    mvprintw(UI_CHAN_START_ROW + response.channel_id_len, UI_INDENT_COL,
+    //             "+ New Channel");
 
-    if (selected == response.channel_id_len) {
-      attroff(A_REVERSE);
-    }
+    //    if (selected == response.channel_id_len) {
+    //      attroff(A_REVERSE);
+    //    }
 
     refresh();
     ch = getch();
@@ -94,7 +89,9 @@ void main_page(int server, const char *username, const char *password) {
       }
 
     } else if (ch == KEY_DOWN) {
-      if (selected < total_items - 1) {
+      // 🔥 FIX 2: prevent (-1) comparison
+      if (response.channel_id_len > 0 &&
+          selected < response.channel_id_len - 1) {
         selected++;
       }
 
@@ -102,56 +99,62 @@ void main_page(int server, const char *username, const char *password) {
       if (selected < response.channel_id_len) {
         channel_page(server, username, password,
                      response.channel_ids[selected]);
-      } else {
-        char channel_name[CHANNEL_NAME_SIZE];
-        struct channel_create_response create_response;
-
-        if (create_channel_popup(channel_name) == POPUP_SUBMIT) {
-          memset(&create_response, 0, sizeof(create_response));
-
-          channel_create_request(server, username, password, channel_name);
-
-          if (channel_create_response(server, &create_response) == 0) {
-            syslog(LOG_INFO, "Channel created: %s", channel_name);
-          } else {
-            syslog(LOG_ERR, "Channel creation failed");
-          }
-
-          refresh();
-          getch();
-        }
       }
-    } else if (ch == 'd') {
-      if (selected < response.channel_id_len) {
 
-        uint8_t channel_id = response.channel_ids[selected];
-        char channel_name[CHANNEL_NAME_SIZE];
+      //      else {
+      //        char channel_name[CHANNEL_NAME_SIZE];
+      //        struct channel_create_response create_response;
+      //
+      //        if (create_channel_popup(channel_name) == POPUP_SUBMIT) {
+      //          memset(&create_response, 0, sizeof(create_response));
+      //
+      //          channel_create_request(server, username, password,
+      //          channel_name);
+      //
+      //          if (channel_create_response(server, &create_response) == 0) {
+      //            syslog(LOG_INFO, "Channel created: %s", channel_name);
+      //          } else {
+      //            syslog(LOG_ERR, "Channel creation failed");
+      //          }
+      //
+      //          refresh();
+      //          getch();
+      //        }
+      //      }
 
-        struct channel_read_response channel_read_resp_local;
-        memset(&channel_read_resp_local, 0, sizeof(channel_read_resp_local));
+      //    } else if (ch == 'd') {
+      //      if (selected < response.channel_id_len) {
+      //
+      //        uint8_t channel_id = response.channel_ids[selected];
+      //        char channel_name[CHANNEL_NAME_SIZE];
+      //
+      //        struct channel_read_response channel_read_resp_local;
+      //        memset(&channel_read_resp_local, 0,
+      //        sizeof(channel_read_resp_local));
+      //
+      //        channel_read_request(server, username, password, channel_id);
+      //        channel_read_response(server, &channel_read_resp_local);
+      //
+      //        memcpy(channel_name, channel_read_resp_local.channel_name,
+      //               CHANNEL_NAME_SIZE);
+      //        channel_name[CHANNEL_NAME_SIZE - 1] = '\0';
+      //
+      //        if (confirm_channel_delete_popup(channel_name) == POPUP_YES) {
+      //
+      //          channel_delete_request(server, username, password,
+      //          channel_id); struct channel_delete_response del_resp;
+      //          memset(&del_resp, 0, sizeof(del_resp));
+      //
+      //          if (channel_delete_response(server, &del_resp) == 0) {
+      //            syslog(LOG_INFO, "Channel deleted: %s", channel_name);
+      //          } else {
+      //            syslog(LOG_ERR, "Channel deletion failed");
+      //          }
+      //          refresh();
+      //          getch();
+      //        }
+      //      }
 
-        channel_read_request(server, username, password, channel_id);
-        channel_read_response(server, &channel_read_resp_local);
-
-        memcpy(channel_name, channel_read_resp_local.channel_name,
-               CHANNEL_NAME_SIZE);
-        channel_name[CHANNEL_NAME_SIZE - 1] = '\0';
-
-        if (confirm_channel_delete_popup(channel_name) == POPUP_YES) {
-
-          channel_delete_request(server, username, password, channel_id);
-          struct channel_delete_response del_resp;
-          memset(&del_resp, 0, sizeof(del_resp));
-
-          if (channel_delete_response(server, &del_resp) == 0) {
-            syslog(LOG_INFO, "Channel deleted: %s", channel_name);
-          } else {
-            syslog(LOG_ERR, "Channel deletion failed");
-          }
-          refresh();
-          getch();
-        }
-      }
     } else if (ch == 'q') {
       logout(server, password, username);
       if (login_logout_response(server) == 1) {
