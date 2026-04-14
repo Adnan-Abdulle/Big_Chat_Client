@@ -217,3 +217,41 @@ void deserialize_server_registration(const uint8_t *buffer,
   deserialize_ipv4(buffer, &message->ip);
   message->server_id = buffer[IPV4_SIZE];
 }
+
+void serialize_channel_create_request(
+    const struct channel_create_request *message, uint8_t *buffer) {
+  memcpy(buffer, message->auth.username, USERNAME_SIZE);
+  memcpy(buffer + USERNAME_SIZE, message->auth.password, PASSWORD_SIZE);
+
+  memcpy(buffer + OFF_CHAN_NAME, message->channel_name, CHANNEL_NAME_SIZE);
+
+  buffer[OFF_CHAN_ID] = message->channel_id;
+}
+
+void deserialize_channel_create_response(
+    const uint8_t *buffer, struct channel_create_response *message) {
+  memcpy(message->auth.username, buffer, USERNAME_SIZE);
+  memcpy(message->auth.password, buffer + USERNAME_SIZE, PASSWORD_SIZE);
+
+  memcpy(message->channel_name, buffer + OFF_CHAN_NAME, CHANNEL_NAME_SIZE);
+
+  message->channel_id = buffer[OFF_CHAN_ID];
+}
+
+void serialize_channel_delete_request(
+    const struct channel_delete_request *message, uint8_t *buffer) {
+
+  memcpy(buffer, message->auth.username, USERNAME_SIZE);
+  memcpy(buffer + USERNAME_SIZE, message->auth.password, PASSWORD_SIZE);
+
+  buffer[AUTH_SIZE] = message->channel_id;
+}
+
+void deserialize_channel_delete_response(
+    const uint8_t *buffer, struct channel_delete_response *message) {
+
+  memcpy(message->auth.username, buffer, USERNAME_SIZE);
+  memcpy(message->auth.password, buffer + USERNAME_SIZE, PASSWORD_SIZE);
+
+  message->channel_id = buffer[AUTH_SIZE];
+}

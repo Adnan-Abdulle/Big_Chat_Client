@@ -71,6 +71,10 @@ enum {
       MAX_HISTORY_RESULTS * (TIMESTAMP_SIZE + 1)
 };
 
+enum { CHANNEL_CREATE_BODY_SIZE = AUTH_SIZE + CHANNEL_NAME_SIZE + 1 };
+
+enum { CHANNEL_DELETE_BODY_SIZE = AUTH_SIZE + 1 };
+
 enum {
   MESSAGE_TYPE_SERVER_REGISTRATION_REQUEST = 0x00,
   MESSAGE_TYPE_SERVER_REGISTRATION_RESPONSE = 0x01,
@@ -90,9 +94,12 @@ enum {
   MESSAGE_TYPE_DELETE_USER_RESPONSE = 0x17,
   MESSAGE_TYPE_LOG_REQUEST = 0x18,
   MESSAGE_TYPE_LOG_RESPONSE = 0x19,
-
+  MESSAGE_TYPE_CHANNEL_CREATE_REQUEST = 0x20,
+  MESSAGE_TYPE_CHANNEL_CREATE_RESPONSE = 0x21,
   MESSAGE_TYPE_CHANNEL_READ_REQUEST = 0x22,
   MESSAGE_TYPE_CHANNEL_READ_RESPONSE = 0x23,
+  MESSAGE_TYPE_CHANNEL_DELETE_REQUEST = 0x26,
+  MESSAGE_TYPE_CHANNEL_DELETE_RESPONSE = 0x27,
   MESSAGE_TYPE_CHANNEL_LIST_READ_REQUEST = 0x2A,
   MESSAGE_TYPE_CHANNEL_LIST_READ_RESPONSE = 0x2B,
   MESSAGE_TYPE_MESSAGE_CREATE_REQUEST = 0x30,
@@ -251,6 +258,28 @@ struct get_history_response {
   uint8_t sender_ids[MAX_HISTORY_RESULTS];
 };
 
+struct channel_create_request {
+    struct auth auth;
+    char channel_name[CHANNEL_NAME_SIZE];
+    uint8_t channel_id;
+};
+
+struct channel_create_response {
+    struct auth auth;
+    char channel_name[CHANNEL_NAME_SIZE];
+    uint8_t channel_id;
+};
+
+struct channel_delete_request {
+    struct auth auth;
+    uint8_t channel_id;
+};
+
+struct channel_delete_response {
+    struct auth auth;
+    uint8_t channel_id;
+};
+
 void serialize_header(const struct protocol_header *header, uint8_t *buffer);
 void deserialize_header(const uint8_t *buffer, struct protocol_header *header);
 
@@ -298,5 +327,17 @@ void serialize_get_history_request(const struct get_history_request *message,
 
 void deserialize_get_history_response(const uint8_t *buffer,
                                       struct get_history_response *message);
+
+void serialize_channel_create_request(
+        const struct channel_create_request *message, uint8_t *buffer);
+
+void deserialize_channel_create_response(
+        const uint8_t *buffer, struct channel_create_response *message);
+
+void serialize_channel_delete_request(
+        const struct channel_delete_request *message, uint8_t *buffer);
+
+void deserialize_channel_delete_response(
+        const uint8_t *buffer, struct channel_delete_response *message);
 
 #endif

@@ -25,26 +25,27 @@ static void handle_message_navigation(int ch, int *focus,
     }
   }
 }
-//depreciated
-//static void remove_selected_message(struct channel_message_state *msg_state) {
-//  int deleted_index;
+// depreciated
+// static void remove_selected_message(struct channel_message_state *msg_state)
+// {
+//   int deleted_index;
 //
-//  deleted_index = msg_state->index;
+//   deleted_index = msg_state->index;
 //
-//  for (int i = deleted_index; i < msg_state->message_count - 1; i++) {
-//    msg_state->messages[i] = msg_state->messages[i + 1];
-//  }
+//   for (int i = deleted_index; i < msg_state->message_count - 1; i++) {
+//     msg_state->messages[i] = msg_state->messages[i + 1];
+//   }
 //
-//  if (msg_state->message_count > 0) {
-//    msg_state->message_count--;
-//  }
+//   if (msg_state->message_count > 0) {
+//     msg_state->message_count--;
+//   }
 //
-//  if (msg_state->message_count == 0) {
-//    msg_state->index = 0;
-//  } else if (msg_state->index >= msg_state->message_count) {
-//    msg_state->index = msg_state->message_count - 1;
-//  }
-//}
+//   if (msg_state->message_count == 0) {
+//     msg_state->index = 0;
+//   } else if (msg_state->index >= msg_state->message_count) {
+//     msg_state->index = msg_state->message_count - 1;
+//   }
+// }
 
 static void handle_message_action(int ch, int *focus, char *input,
                                   int *input_len, int server,
@@ -119,7 +120,6 @@ static void handle_input_navigation(int ch, int *focus,
     handle_scroll_down(msg_state);
   }
 }
-
 
 static void handle_input_editing(char *input, int *input_len, int server,
                                  const char *username, const char *password,
@@ -250,8 +250,7 @@ void handle_parsed_message(const struct protocol_header *msg_header,
   if (existing_index >= 0) {
     if (msg.message_len == 0 || msg.message[0] == '\0') {
       remove_message_at_index(msg_state, existing_index);
-    }
-    else {
+    } else {
       update_message_at_index(msg_state, existing_index, msg.message);
     }
 

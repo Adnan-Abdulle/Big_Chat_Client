@@ -715,6 +715,130 @@ int delete_message_response(int server) {
   return 0;
 }
 
+void channel_create_request(int server_fd, const char *username,
+                            const char *password, const char *channel_name) {
+  uint8_t buffer[HEADER_SIZE + CHANNEL_CREATE_BODY_SIZE];
+  struct protocol_header header;
+  struct channel_create_request channel_create_req;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_CHANNEL_CREATE_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = CHANNEL_CREATE_BODY_SIZE;
+  serialize_header(&header, buffer);
+
+  memset(&channel_create_req, 0, sizeof(channel_create_req));
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+  if (strlen(channel_name) >= CHANNEL_NAME_SIZE) {
+    return;
+  }
+
+  memcpy(channel_create_req.auth.username, username, strlen(username));
+  memcpy(channel_create_req.auth.password, password, strlen(password));
+  memcpy(channel_create_req.channel_name, channel_name, strlen(channel_name));
+  channel_create_req.channel_id = 0;
+
+  serialize_channel_create_request(&channel_create_req, buffer + HEADER_SIZE);
+
+  write_exact(server_fd, buffer, HEADER_SIZE + CHANNEL_CREATE_BODY_SIZE);
+}
+
+int channel_create_response(int server_fd,
+                            struct channel_create_response *response) {
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+  uint8_t body_buffer[CHANNEL_CREATE_BODY_SIZE];
+
+  read_exact(server_fd, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.type != MESSAGE_TYPE_CHANNEL_CREATE_RESPONSE) {
+    return -1;
+  }
+
+  if (header.body_size != CHANNEL_CREATE_BODY_SIZE) {
+    return -1;
+  }
+
+  read_exact(server_fd, body_buffer, CHANNEL_CREATE_BODY_SIZE);
+
+  memset(response, 0, sizeof(*response));
+  deserialize_channel_create_response(body_buffer, response);
+
+  return 0;
+}
+
+void channel_delete_request(int server_fd, const char *username,
+                            const char *password, uint8_t channel_id) {
+  uint8_t buffer[HEADER_SIZE + CHANNEL_DELETE_BODY_SIZE];
+  struct protocol_header header;
+  struct channel_delete_request channel_delete_req;
+
+  header.version = PROTOCOL_VERSION;
+  header.type = MESSAGE_TYPE_CHANNEL_DELETE_REQUEST;
+  header.status = STATUS_OK;
+  header.reserved = 0;
+  header.body_size = CHANNEL_DELETE_BODY_SIZE;
+  serialize_header(&header, buffer);
+
+  memset(&channel_delete_req, 0, sizeof(channel_delete_req));
+
+  if (strlen(username) >= USERNAME_SIZE) {
+    return;
+  }
+  if (strlen(password) >= PASSWORD_SIZE) {
+    return;
+  }
+
+  memcpy(channel_delete_req.auth.username, username, strlen(username));
+  memcpy(channel_delete_req.auth.password, password, strlen(password));
+  channel_delete_req.channel_id = channel_id;
+
+  serialize_channel_delete_request(&channel_delete_req, buffer + HEADER_SIZE);
+
+  write_exact(server_fd, buffer, HEADER_SIZE + CHANNEL_DELETE_BODY_SIZE);
+}
+
+int channel_delete_response(int server_fd,
+                            struct channel_delete_response *response) {
+  uint8_t header_buffer[HEADER_SIZE];
+  struct protocol_header header;
+  uint8_t body_buffer[CHANNEL_DELETE_BODY_SIZE];
+
+  read_exact(server_fd, header_buffer, HEADER_SIZE);
+  deserialize_header(header_buffer, &header);
+
+  if (header.type != MESSAGE_TYPE_CHANNEL_DELETE_RESPONSE) {
+    return -1;
+  }
+
+  if (header.status != STATUS_OK) {
+    return -1;
+  }
+
+  if (header.body_size != CHANNEL_DELETE_BODY_SIZE) {
+    return -1;
+  }
+
+  read_exact(server_fd, body_buffer, CHANNEL_DELETE_BODY_SIZE);
+
+  memset(response, 0, sizeof(*response));
+  deserialize_channel_delete_response(body_buffer, response);
+
+  return 0;
+}
+
 /* send a get history request to the server */
 void get_history_request(int server, const char *username, const char *password,
                          uint64_t start_timestamp, uint8_t channel_id,

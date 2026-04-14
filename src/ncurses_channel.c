@@ -19,7 +19,6 @@ enum {
 
 enum { INPUT_BUF_SIZE = 1024 };
 
-
 /* display the channel messages and handle sending new ones */
 void channel_page(int server, const char *username, const char *password,
                   uint8_t channel_id) {
@@ -49,7 +48,6 @@ void channel_page(int server, const char *username, const char *password,
   channel_read_response(server, &response);
 
   load_history(server, username, password, channel_id, &msg_state);
-
 
   getmaxyx(stdscr, height, width);
 

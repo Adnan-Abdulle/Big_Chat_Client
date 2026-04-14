@@ -12,7 +12,6 @@
 
 enum { HISTORY_LIMIT = 50 };
 
-
 void load_history(int server, const char *username, const char *password,
                   uint8_t channel_id, struct channel_message_state *msg_state) {
   static struct get_history_response history;
@@ -57,7 +56,6 @@ void load_history(int server, const char *username, const char *password,
     msg_state->index = msg_state->message_count - 1;
   }
 }
-
 
 int handle_server_input(struct recv_buffer *recv_buf, int server,
                         struct channel_message_state *msg_state) {

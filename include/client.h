@@ -65,5 +65,16 @@ void get_history_request(int server, const char *username,
 
 int get_history_response(int server, struct get_history_response *response);
 
+void channel_create_request(int server_fd, const char *username,
+                            const char *password, const char *channel_name);
+
+int channel_create_response(int server_fd,
+                            struct channel_create_response *response);
+
+void channel_delete_request(int server_fd, const char *username,
+                            const char *password, uint8_t channel_id);
+
+int channel_delete_response(int server_fd,
+                            struct channel_delete_response *response);
 
 #endif /* MAIN_CLIENT_H */
